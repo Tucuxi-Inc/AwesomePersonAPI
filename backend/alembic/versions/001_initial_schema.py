@@ -302,7 +302,7 @@ def upgrade() -> None:
         sa.Column('resource_id', postgresql.UUID(as_uuid=True), nullable=True, index=True),
         sa.Column('description', sa.Text, nullable=True),
         sa.Column('changes', postgresql.JSONB, nullable=True),
-        sa.Column('metadata', postgresql.JSONB, nullable=True),
+        sa.Column('extra_data', postgresql.JSONB, nullable=True),
         sa.Column('ip_address', sa.String(50), nullable=True),
         sa.Column('user_agent', sa.String(500), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),

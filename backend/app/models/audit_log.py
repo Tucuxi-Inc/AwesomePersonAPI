@@ -42,7 +42,7 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
     changes: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     # Format: {"field": {"old": ..., "new": ...}, ...}
 
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    extra_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     # Additional context like IP address, user agent, etc.
 
     # Request context
