@@ -1,4 +1,4 @@
-"""Trait endpoints (read-only, seeded data)."""
+"""Trait endpoints."""
 
 from typing import Annotated, List, Optional
 import uuid
@@ -8,13 +8,15 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.dependencies import get_db, get_current_user
+from app.dependencies import get_db, get_current_user, require_role
 from app.models import Trait, TraitValenceMapping, User
 from app.schemas.trait import (
     TraitResponse,
     TraitDetailResponse,
     TraitList,
     TraitCategoryResponse,
+    TraitCreate,
+    TraitUpdate,
 )
 from app.data.traits import TRAIT_CATEGORIES
 
@@ -118,3 +120,80 @@ async def get_trait_by_name(
         )
 
     return trait
+
+
+@router.post("", response_model=TraitResponse, status_code=status.HTTP_201_CREATED)
+async def create_trait(
+    trait_in: TraitCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> Trait:
+    """Create a new trait (admin only)."""
+    # Check if trait with this name already exists
+    result = await db.execute(select(Trait).where(Trait.name == trait_in.name))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Trait with this name already exists",
+        )
+
+    trait = Trait(**trait_in.model_dump())
+    db.add(trait)
+    await db.commit()
+    await db.refresh(trait)
+    return trait
+
+
+@router.put("/{trait_id}", response_model=TraitResponse)
+async def update_trait(
+    trait_id: uuid.UUID,
+    trait_in: TraitUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> Trait:
+    """Update a trait (admin only)."""
+    result = await db.execute(select(Trait).where(Trait.id == trait_id))
+    trait = result.scalar_one_or_none()
+
+    if not trait:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trait not found",
+        )
+
+    # Check if new name conflicts with existing trait
+    if trait_in.name and trait_in.name != trait.name:
+        name_check = await db.execute(select(Trait).where(Trait.name == trait_in.name))
+        if name_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Trait with this name already exists",
+            )
+
+    update_data = trait_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(trait, field, value)
+
+    await db.commit()
+    await db.refresh(trait)
+    return trait
+
+
+@router.delete("/{trait_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_trait(
+    trait_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> None:
+    """Delete a trait (admin only)."""
+    result = await db.execute(select(Trait).where(Trait.id == trait_id))
+    trait = result.scalar_one_or_none()
+
+    if not trait:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trait not found",
+        )
+
+    await db.delete(trait)
+    await db.commit()

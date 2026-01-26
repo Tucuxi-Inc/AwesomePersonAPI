@@ -72,6 +72,12 @@ export const api = {
 
   getMe: () => client.get('/auth/me'),
 
+  updateMe: (data: { full_name?: string; phone?: string; title?: string; bio?: string }) =>
+    client.put('/auth/me', data),
+
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    client.put('/auth/me/password', data),
+
   // Organizations
   getOrganizations: (params?: { skip?: number; limit?: number; search?: string }) =>
     client.get('/organizations', { params }),
@@ -100,6 +106,9 @@ export const api = {
 
   deleteUser: (id: string) => client.delete(`/users/${id}`),
 
+  // Dashboard
+  getDashboardStats: () => client.get('/dashboard/stats'),
+
   // Traits
   getTraits: (params?: { skip?: number; limit?: number; category?: string; search?: string }) =>
     client.get('/traits', { params }),
@@ -107,6 +116,32 @@ export const api = {
   getTrait: (id: string) => client.get(`/traits/${id}`),
 
   getTraitByName: (name: string) => client.get(`/traits/name/${name}`),
+
+  createTrait: (data: {
+    name: string;
+    category: string;
+    definition: string;
+    spectrum_low_label: string;
+    spectrum_high_label: string;
+    behavioral_markers_low?: string[];
+    behavioral_markers_high?: string[];
+    counter_indicator_for?: string[];
+    display_order?: number;
+  }) => client.post('/traits', data),
+
+  updateTrait: (id: string, data: Partial<{
+    name: string;
+    category: string;
+    definition: string;
+    spectrum_low_label: string;
+    spectrum_high_label: string;
+    behavioral_markers_low: string[];
+    behavioral_markers_high: string[];
+    counter_indicator_for: string[];
+    display_order: number;
+  }>) => client.put(`/traits/${id}`, data),
+
+  deleteTrait: (id: string) => client.delete(`/traits/${id}`),
 
   getTraitCategories: () => client.get('/traits/categories'),
 

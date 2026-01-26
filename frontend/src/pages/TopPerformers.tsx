@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users, Play, Loader2, X, Link2, Copy, Check } from 'lucide-react';
+import { Plus, Users, Play, Loader2, X, Link2, Copy, Check, Edit, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,10 +29,14 @@ export default function TopPerformers() {
   const [traits, setTraits] = useState<Trait[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isProfilingOpen, setIsProfilingOpen] = useState(false);
   const [selectedPerformer, setSelectedPerformer] = useState<TopPerformer | null>(null);
   const [selectedTraits, setSelectedTraits] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [startingProfiling, setStartingProfiling] = useState(false);
 
   // Invitation dialog state
@@ -49,6 +54,7 @@ export default function TopPerformers() {
     tenure_months: '',
     email: '',
     employee_id: '',
+    notes: '',
   });
 
   useEffect(() => {
@@ -70,6 +76,19 @@ export default function TopPerformers() {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      job_title: '',
+      department: '',
+      role_category: '',
+      tenure_months: '',
+      email: '',
+      employee_id: '',
+      notes: '',
+    });
+  };
+
   const handleCreate = async () => {
     setCreating(true);
     try {
@@ -81,22 +100,77 @@ export default function TopPerformers() {
         tenure_months: formData.tenure_months ? parseInt(formData.tenure_months) : undefined,
         email: formData.email || undefined,
         employee_id: formData.employee_id || undefined,
+        notes: formData.notes || undefined,
       });
       setIsCreateOpen(false);
-      setFormData({
-        name: '',
-        job_title: '',
-        department: '',
-        role_category: '',
-        tenure_months: '',
-        email: '',
-        employee_id: '',
-      });
+      resetForm();
       loadData();
     } catch (error) {
       console.error('Failed to create performer:', error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenEditDialog = (performer: TopPerformer) => {
+    setSelectedPerformer(performer);
+    setFormData({
+      name: performer.name || '',
+      job_title: performer.job_title,
+      department: performer.department || '',
+      role_category: performer.role_category,
+      tenure_months: performer.tenure_months?.toString() || '',
+      email: performer.email || '',
+      employee_id: performer.employee_id || '',
+      notes: performer.notes || '',
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedPerformer) return;
+
+    setUpdating(true);
+    try {
+      await api.updateTopPerformer(selectedPerformer.id, {
+        name: formData.name || undefined,
+        job_title: formData.job_title,
+        department: formData.department || undefined,
+        role_category: formData.role_category,
+        tenure_months: formData.tenure_months ? parseInt(formData.tenure_months) : undefined,
+        email: formData.email || undefined,
+        employee_id: formData.employee_id || undefined,
+        notes: formData.notes || undefined,
+      });
+      setIsEditOpen(false);
+      resetForm();
+      setSelectedPerformer(null);
+      loadData();
+    } catch (error) {
+      console.error('Failed to update performer:', error);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleOpenDeleteDialog = (performer: TopPerformer) => {
+    setSelectedPerformer(performer);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedPerformer) return;
+
+    setDeleting(true);
+    try {
+      await api.deleteTopPerformer(selectedPerformer.id);
+      setIsDeleteOpen(false);
+      setSelectedPerformer(null);
+      loadData();
+    } catch (error) {
+      console.error('Failed to delete performer:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -195,7 +269,7 @@ export default function TopPerformers() {
             Profile high performers to build organization-specific rubrics
           </p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button onClick={() => { resetForm(); setIsCreateOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
           Add Top Performer
         </Button>
@@ -204,7 +278,7 @@ export default function TopPerformers() {
       {/* Create Dialog */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <Card className="w-full max-w-md">
+          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Add Top Performer</CardTitle>
@@ -286,6 +360,16 @@ export default function TopPerformers() {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Additional notes about this performer..."
+                  rows={2}
+                />
+              </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
@@ -302,6 +386,149 @@ export default function TopPerformers() {
           </Card>
         </div>
       )}
+
+      {/* Edit Dialog */}
+      {isEditOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Edit Top Performer</CardTitle>
+                <Button variant="ghost" size="icon" onClick={() => setIsEditOpen(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardDescription>
+                Update the performer's information.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name (optional)</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="John Smith"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-job_title">Job Title *</Label>
+                <Input
+                  id="edit-job_title"
+                  value={formData.job_title}
+                  onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                  placeholder="Senior Software Engineer"
+                  autoComplete="off"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-department">Department</Label>
+                  <Input
+                    id="edit-department"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    placeholder="Engineering"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-role_category">Role Category *</Label>
+                  <Input
+                    id="edit-role_category"
+                    value={formData.role_category}
+                    onChange={(e) => setFormData({ ...formData, role_category: e.target.value })}
+                    placeholder="Software Development"
+                    autoComplete="off"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-tenure_months">Tenure (months)</Label>
+                  <Input
+                    id="edit-tenure_months"
+                    type="number"
+                    min="0"
+                    value={formData.tenure_months}
+                    onChange={(e) => setFormData({ ...formData, tenure_months: e.target.value })}
+                    placeholder="24"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="john@company.com"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Additional notes about this performer..."
+                  rows={2}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdate}
+                  disabled={updating || !formData.job_title || !formData.role_category}
+                >
+                  {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Changes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Top Performer</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{selectedPerformer?.name || selectedPerformer?.job_title}"?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Profiling Dialog */}
       {isProfilingOpen && selectedPerformer && (
@@ -362,7 +589,7 @@ export default function TopPerformers() {
             <p className="text-muted-foreground text-center mb-4">
               Add your high-performing employees to start profiling their traits.
             </p>
-            <Button onClick={() => setIsCreateOpen(true)}>
+            <Button onClick={() => { resetForm(); setIsCreateOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Add Your First Top Performer
             </Button>
@@ -391,7 +618,7 @@ export default function TopPerformers() {
                 </thead>
                 <tbody>
                   {performers.map((performer) => (
-                    <tr key={performer.id} className="border-b last:border-b-0">
+                    <tr key={performer.id} className="border-b last:border-b-0 hover:bg-muted/50">
                       <td className="py-3 px-4">
                         <div>
                           <div className="font-medium">
@@ -434,6 +661,21 @@ export default function TopPerformers() {
                               Invite
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditDialog(performer)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleOpenDeleteDialog(performer)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>

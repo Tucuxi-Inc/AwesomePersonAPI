@@ -60,3 +60,31 @@ class TraitCategoryResponse(BaseModel):
 
     name: str
     traits: List[TraitResponse]
+
+
+class TraitCreate(BaseModel):
+    """Schema for creating a trait."""
+
+    name: str
+    category: str
+    definition: str
+    spectrum_low_label: str
+    spectrum_high_label: str
+    behavioral_markers_low: List[str] = []
+    behavioral_markers_high: List[str] = []
+    counter_indicator_for: List[str] = []
+    display_order: int = 0
+
+
+class TraitUpdate(BaseModel):
+    """Schema for updating a trait."""
+
+    name: Optional[str] = None
+    category: Optional[str] = None
+    definition: Optional[str] = None
+    spectrum_low_label: Optional[str] = None
+    spectrum_high_label: Optional[str] = None
+    behavioral_markers_low: Optional[List[str]] = None
+    behavioral_markers_high: Optional[List[str]] = None
+    counter_indicator_for: Optional[List[str]] = None
+    display_order: Optional[int] = None

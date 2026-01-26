@@ -16,6 +16,8 @@ import TopPerformers from '@/pages/TopPerformers';
 import ProfilingSession from '@/pages/ProfilingSession';
 import RoleTemplates from '@/pages/RoleTemplates';
 import InvitationLanding from '@/pages/InvitationLanding';
+import Rubrics from '@/pages/Rubrics';
+import Settings from '@/pages/Settings';
 
 function App() {
   return (
@@ -43,11 +45,11 @@ function App() {
           <Route path="/roles" element={<RoleTemplates />} />
           <Route path="/roles/:roleId" element={<Placeholder title="Role Profile" description="View and edit role profile details" />} />
           <Route path="/traits" element={<Traits />} />
-          <Route path="/rubrics" element={<Placeholder title="Scoring Rubrics" description="View and customize assessment rubrics" />} />
+          <Route path="/rubrics" element={<Rubrics />} />
           <Route path="/profiling" element={<TopPerformers />} />
           <Route path="/profiling/:sessionId" element={<ProfilingSession />} />
           <Route path="/compliance" element={<Compliance />} />
-          <Route path="/settings" element={<Placeholder title="Settings" description="Configure your organization and preferences" />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

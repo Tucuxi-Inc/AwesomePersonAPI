@@ -23,6 +23,7 @@ from app.schemas.auth import (
     TokenRefresh,
     UserResponse,
     PasswordChange,
+    ProfileUpdate,
 )
 
 router = APIRouter()
@@ -161,6 +162,22 @@ async def get_current_user_info(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
     """Get current user information."""
+    return current_user
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_current_user(
+    profile_in: ProfileUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    """Update current user's profile."""
+    update_data = profile_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+
+    await db.commit()
+    await db.refresh(current_user)
     return current_user
 
 
