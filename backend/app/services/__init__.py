@@ -61,6 +61,7 @@ from app.services.score_calibrator import (
     Recommendation,
     get_score_calibrator,
 )
+from app.services.job_analyzer import JobDescriptionAnalyzer
 
 __all__ = [
     # LLM Client
@@ -110,4 +111,6 @@ __all__ = [
     "EvidenceForScoring",
     "Recommendation",
     "get_score_calibrator",
+    # Job Analyzer
+    "JobDescriptionAnalyzer",
 ]

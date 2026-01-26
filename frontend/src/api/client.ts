@@ -450,4 +450,65 @@ export const api = {
 
   endSelfServiceSession: (token: string) =>
     client.post(`/public/invite/${token}/end`),
+
+  // Jobs
+  getJobs: (params?: { skip?: number; limit?: number; search?: string; status?: string }) =>
+    client.get('/jobs', { params }),
+
+  getJob: (id: string) => client.get(`/jobs/${id}`),
+
+  createJob: (data: {
+    title: string;
+    description: string;
+    department?: string;
+    location?: string;
+    employment_type?: string;
+    role_profile_id?: string;
+    objective_requirements?: Array<{
+      id?: string;
+      type: string;
+      requirement: string;
+      required: boolean;
+    }>;
+    nice_to_haves?: Array<{ description: string }>;
+    responsibilities?: string[];
+    suggested_traits?: string[];
+    status?: string;
+  }) => client.post('/jobs', data),
+
+  updateJob: (id: string, data: Partial<{
+    title: string;
+    description: string;
+    department: string;
+    location: string;
+    employment_type: string;
+    role_profile_id: string;
+    objective_requirements: Array<{
+      id?: string;
+      type: string;
+      requirement: string;
+      required: boolean;
+    }>;
+    nice_to_haves: Array<{ description: string }>;
+    responsibilities: string[];
+    suggested_traits: string[];
+    status: string;
+  }>) => client.put(`/jobs/${id}`, data),
+
+  deleteJob: (id: string) => client.delete(`/jobs/${id}`),
+
+  extractJobRequirements: (id: string) =>
+    client.post(`/jobs/${id}/extract-requirements`),
+
+  saveJobRequirements: (id: string, data: {
+    objective_requirements: Array<{
+      id?: string;
+      type: string;
+      requirement: string;
+      required: boolean;
+    }>;
+    nice_to_haves: Array<{ description: string }>;
+    responsibilities: string[];
+    suggested_traits: string[];
+  }) => client.post(`/jobs/${id}/save-requirements`, data),
 };

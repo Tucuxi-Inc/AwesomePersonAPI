@@ -29,6 +29,7 @@ from app.models.compliance import (
     RubricValidationRecord,
 )
 from app.models.invitation import Invitation, InvitationType, InvitationStatus
+from app.models.job import Job, JobStatus
 
 __all__ = [
     "Organization",
@@ -72,4 +73,6 @@ __all__ = [
     "Invitation",
     "InvitationType",
     "InvitationStatus",
+    "Job",
+    "JobStatus",
 ]

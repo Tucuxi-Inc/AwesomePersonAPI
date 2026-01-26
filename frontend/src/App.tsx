@@ -18,6 +18,7 @@ import RoleTemplates from '@/pages/RoleTemplates';
 import InvitationLanding from '@/pages/InvitationLanding';
 import Rubrics from '@/pages/Rubrics';
 import Settings from '@/pages/Settings';
+import Jobs from '@/pages/Jobs';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/jobs" element={<Jobs />} />
           <Route path="/candidates" element={<Candidates />} />
           <Route path="/candidates/:candidateId/start-interview" element={<StartInterview />} />
           <Route path="/interviews" element={<Interviews />} />

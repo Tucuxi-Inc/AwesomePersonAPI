@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.rubric import ScoringRubric
     from app.models.candidate import Candidate
     from app.models.top_performer import TopPerformer
+    from app.models.job import Job
 
 
 class Organization(Base, UUIDMixin, TimestampMixin):
@@ -37,6 +38,7 @@ class Organization(Base, UUIDMixin, TimestampMixin):
     rubrics: Mapped[List["ScoringRubric"]] = relationship("ScoringRubric", back_populates="organization")
     candidates: Mapped[List["Candidate"]] = relationship("Candidate", back_populates="organization")
     top_performers: Mapped[List["TopPerformer"]] = relationship("TopPerformer", back_populates="organization")
+    jobs: Mapped[List["Job"]] = relationship("Job", back_populates="organization")
 
     def __repr__(self) -> str:
         return f"<Organization(id={self.id}, name={self.name})>"

@@ -16,6 +16,7 @@ from app.api.v1 import (
     invitations,
     public,
     dashboard,
+    jobs,
 )
 
 router = APIRouter()
@@ -36,3 +37,4 @@ router.include_router(invitations.router, prefix="/invitations", tags=["Invitati
 router.include_router(compliance.router, prefix="/compliance", tags=["Compliance"])
 router.include_router(profiling.router, prefix="/profiling", tags=["Profile Development"])
 router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+router.include_router(jobs.router, prefix="/jobs", tags=["Jobs"])

@@ -12,10 +12,12 @@ import {
   ClipboardList,
   Shield,
   UserCheck,
+  FolderOpen,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Jobs', href: '/jobs', icon: FolderOpen },
   { name: 'Candidates', href: '/candidates', icon: Users },
   { name: 'Interviews', href: '/interviews', icon: ClipboardList },
   { name: 'Profiling', href: '/profiling', icon: UserCheck },
