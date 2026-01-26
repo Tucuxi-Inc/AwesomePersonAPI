@@ -467,7 +467,7 @@ Return JSON:
         # Check STAR completeness
         missing = [k for k, v in star_completeness.items() if not v]
         if missing:
-            patterns.append(ReasoningPattern.IP3_LISTENING)
+            patterns.append(ReasoningPattern.IP3_ACTIVE_LISTENING)
             # Prioritize action > result > situation > task
             priority = ["action", "result", "situation", "task"]
             for component in priority:

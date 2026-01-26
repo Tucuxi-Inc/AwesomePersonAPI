@@ -148,7 +148,7 @@ class PatternAwareProbeGenerator:
         context.probe_type = probe_type_map.get(missing_component, "FOLLOW_UP_DEPTH")
 
         # Always apply IP3 (omission detection) for follow-ups
-        patterns = [ReasoningPattern.IP3_LISTENING, ReasoningPattern.MC35_REPRESENTATION]
+        patterns = [ReasoningPattern.IP3_ACTIVE_LISTENING, ReasoningPattern.MC35_REPRESENTATION]
 
         prompt = self._build_follow_up_prompt(context, missing_component)
         system_prompt = self._build_system_prompt()
@@ -290,7 +290,7 @@ Return JSON:
         Applies MC38 (Abstraction Level) to dig deeper.
         """
         context.probe_type = "DEPTH_ESCALATION"
-        patterns = [ReasoningPattern.MC38_ABSTRACTION, ReasoningPattern.IP3_LISTENING]
+        patterns = [ReasoningPattern.MC38_ABSTRACTION, ReasoningPattern.IP3_ACTIVE_LISTENING]
 
         prompt = f"""The candidate's response about {context.trait_name} was SURFACE-LEVEL.
 We need to dig deeper for specific behavioral evidence.
