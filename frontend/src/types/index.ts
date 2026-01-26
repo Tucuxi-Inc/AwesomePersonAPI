@@ -330,3 +330,90 @@ export interface AssessmentSummaryResponse {
   counter_indicator_flags: CounterIndicatorFlag[];
   assessment_summary: string;
 }
+
+// --- Compliance Types ---
+
+export type ProtectedClass = 'gender' | 'race_ethnicity' | 'age_group' | 'disability' | 'veteran_status';
+
+export interface ImpactRatio {
+  protected_class: string;
+  group_a: string;
+  group_b: string;
+  group_a_selection_rate: number;
+  group_b_selection_rate: number;
+  impact_ratio: number;
+  passes_four_fifths: boolean;
+  sample_size_adequate: boolean;
+  group_a_sample_size: number;
+  group_b_sample_size: number;
+}
+
+export interface ImpactDashboardAlert {
+  protected_class: string;
+  group: string;
+  current_ratio: number;
+  threshold: number;
+  severity: 'MEDIUM' | 'HIGH';
+}
+
+export interface ImpactDashboardResponse {
+  current_ratios: ImpactRatio[];
+  trends: Record<string, unknown>[];
+  alerts: ImpactDashboardAlert[];
+  last_full_audit: string | null;
+  next_audit_due: string | null;
+}
+
+export interface DisparateImpactReport {
+  id: string;
+  organization_id: string;
+  period_start: string;
+  period_end: string;
+  report_type: string;
+  total_assessments: number;
+  assessments_with_demographics: number;
+  has_disparate_impact: boolean;
+  overall_assessment: string | null;
+  recommendations: string[];
+  required_actions: string[];
+  created_at: string;
+}
+
+export interface ComplianceStatus {
+  organization_id: string;
+  is_compliant: boolean;
+  missing_documentation: string[];
+  warnings: string[];
+  last_audit_date: string | null;
+  next_audit_due: string | null;
+  rubric_validation_issues: number;
+  pending_disclosures: number;
+}
+
+export interface CandidateDisclosure {
+  id: string;
+  candidate_id: string;
+  interview_session_id: string | null;
+  organization_id: string;
+  disclosure_type: string;
+  disclosure_version: string;
+  jurisdiction: string | null;
+  consent_required: boolean;
+  consent_given: boolean | null;
+  consent_given_at: string | null;
+  shown_at: string;
+  acknowledged_at: string | null;
+}
+
+export interface DisclosureSection {
+  heading: string;
+  content: string;
+}
+
+export interface DisclosureContent {
+  title: string;
+  sections: DisclosureSection[];
+  consent_required: boolean;
+  consent_text: string | null;
+  jurisdiction: string | null;
+}

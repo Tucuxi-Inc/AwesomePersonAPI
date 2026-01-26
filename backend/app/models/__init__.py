@@ -17,6 +17,17 @@ from app.models.evidence_item import EvidenceItem, EvidenceType, EVIDENCE_TYPE_W
 from app.models.trait_assessment import TraitAssessment, AssessmentStatus
 from app.models.assessment_report import AssessmentReport, Recommendation
 from app.models.audit_log import AuditLog
+from app.models.compliance import (
+    ProtectedClass,
+    ComplianceCheckType,
+    ComplianceSeverity,
+    AssessmentAuditRecord,
+    ComplianceCheck,
+    DisparateImpactReport,
+    CandidateDemographics,
+    CandidateDisclosure,
+    RubricValidationRecord,
+)
 
 __all__ = [
     "Organization",
@@ -47,4 +58,13 @@ __all__ = [
     "AssessmentReport",
     "Recommendation",
     "AuditLog",
+    "ProtectedClass",
+    "ComplianceCheckType",
+    "ComplianceSeverity",
+    "AssessmentAuditRecord",
+    "ComplianceCheck",
+    "DisparateImpactReport",
+    "CandidateDemographics",
+    "CandidateDisclosure",
+    "RubricValidationRecord",
 ]

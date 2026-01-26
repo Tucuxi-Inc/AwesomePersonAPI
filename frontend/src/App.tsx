@@ -11,6 +11,7 @@ import StartInterview from '@/pages/StartInterview';
 import Interviews from '@/pages/Interviews';
 import Interview from '@/pages/Interview';
 import AssessmentResults from '@/pages/AssessmentResults';
+import { Compliance } from '@/pages/Compliance';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="/roles" element={<Placeholder title="Role Profiles" description="Configure role requirements and trait mappings" />} />
           <Route path="/traits" element={<Traits />} />
           <Route path="/rubrics" element={<Placeholder title="Scoring Rubrics" description="View and customize assessment rubrics" />} />
+          <Route path="/compliance" element={<Compliance />} />
           <Route path="/settings" element={<Placeholder title="Settings" description="Configure your organization and preferences" />} />
         </Route>
       </Routes>

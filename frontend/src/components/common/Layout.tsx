@@ -10,6 +10,7 @@ import {
   LogOut,
   Brain,
   ClipboardList,
+  Shield,
 } from 'lucide-react';
 
 const navigation = [
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Roles', href: '/roles', icon: Briefcase },
   { name: 'Traits', href: '/traits', icon: Brain },
   { name: 'Rubrics', href: '/rubrics', icon: FileText },
+  { name: 'Compliance', href: '/compliance', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

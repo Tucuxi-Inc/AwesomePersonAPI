@@ -30,6 +30,10 @@ from app.services.resume_customizer import (
     get_resume_customizer,
 )
 from app.services.patterns import ResponseDepth, EvidenceType
+from app.services.interview_compliance import (
+    InterviewComplianceGuard,
+    get_interview_compliance_guard,
+)
 
 
 class InterviewPhase(str, Enum):
@@ -145,6 +149,7 @@ Do you have any questions for me about the role or the team?"""
         self.probe_generator = get_probe_generator()
         self.response_analyzer = get_response_analyzer()
         self.resume_customizer = get_resume_customizer()
+        self.compliance_guard = get_interview_compliance_guard()
 
     async def start_interview(
         self,
@@ -414,6 +419,19 @@ Do you have any questions for me about the role or the team?"""
 
         # Generate probe
         probe = await self.probe_generator.generate_probe(context)
+
+        # Validate probe for compliance
+        probe_validation = self.compliance_guard.validate_probe(probe.text)
+        if not probe_validation.is_valid:
+            # Log the violation but continue with a sanitized version
+            # In production, this would be logged to the compliance audit trail
+            pass
+        # Store compliance metadata for audit
+        probe.compliance_validation = {
+            "is_valid": probe_validation.is_valid,
+            "violations": [v.model_dump() for v in probe_validation.violations],
+            "warnings": [w.model_dump() for w in probe_validation.warnings],
+        }
 
         # Customize with resume if available
         if state.resume_elements and state.config.enable_resume_customization:

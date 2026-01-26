@@ -216,4 +216,44 @@ export const api = {
   // Interview Sessions list (for candidate's interview history)
   getCandidateInterviews: (candidateId: string) =>
     client.get(`/candidates/${candidateId}/interviews`),
+
+  // Compliance
+  getImpactDashboard: () => client.get('/compliance/impact-dashboard'),
+
+  getImpactReports: (params?: { limit?: number; offset?: number }) =>
+    client.get('/compliance/impact-reports', { params }),
+
+  generateImpactReport: (data: {
+    organization_id: string;
+    period_start: string;
+    period_end: string;
+    report_type?: string;
+  }) => client.post('/compliance/impact-reports', data),
+
+  getComplianceStatus: () => client.get('/compliance/status'),
+
+  generateDisclosure: (params?: {
+    role_profile_id?: string;
+    jurisdiction?: string;
+    trait_names?: string[];
+  }) => client.post('/compliance/disclosures/generate', null, { params }),
+
+  recordDisclosure: (data: {
+    candidate_id: string;
+    interview_session_id?: string;
+    disclosure_type: string;
+    disclosure_content: string;
+    jurisdiction?: string;
+    consent_required?: boolean;
+    consent_given?: boolean;
+  }) => client.post('/compliance/disclosures', data),
+
+  acknowledgeDisclosure: (disclosureId: string, data: { consent_given?: boolean }) =>
+    client.post(`/compliance/disclosures/${disclosureId}/acknowledge`, data),
+
+  getCandidateDisclosures: (candidateId: string) =>
+    client.get(`/compliance/disclosures/candidate/${candidateId}`),
+
+  getAssessmentAudit: (assessmentId: string) =>
+    client.get(`/compliance/audit/assessment/${assessmentId}`),
 };
