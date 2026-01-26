@@ -1,13 +1,22 @@
 """Scoring rubric model."""
 
+import enum
 import uuid
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import ForeignKey, String, Text, Boolean, Integer
+from sqlalchemy import ForeignKey, String, Text, Boolean, Integer, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+
+class RubricSource(str, enum.Enum):
+    """Source of a scoring rubric."""
+    RESEARCH_DEFAULT = "RESEARCH_DEFAULT"  # Research-based default rubric
+    ROLE_TEMPLATE = "ROLE_TEMPLATE"  # From a role template
+    ORGANIZATION_CUSTOMIZED = "ORGANIZATION_CUSTOMIZED"  # Manually customized by org
+    PROFILING_DERIVED = "PROFILING_DERIVED"  # Generated from top performer profiling
 
 if TYPE_CHECKING:
     from app.models.organization import Organization
@@ -60,6 +69,11 @@ class ScoringRubric(Base, UUIDMixin, TimestampMixin):
     # Status
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Source tracking
+    rubric_source: Mapped[Optional[RubricSource]] = mapped_column(
+        Enum(RubricSource), nullable=True, default=None
+    )
 
     # Derivation tracking
     derived_from: Mapped[Optional[uuid.UUID]] = mapped_column(

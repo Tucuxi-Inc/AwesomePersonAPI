@@ -4,7 +4,7 @@ from app.models.organization import Organization
 from app.models.user import User, UserRole
 from app.models.trait import Trait, TraitCategory, TraitValenceMapping, Valence
 from app.models.role_profile import RoleProfile
-from app.models.rubric import ScoringRubric
+from app.models.rubric import ScoringRubric, RubricSource
 from app.models.scenario import Scenario
 from app.models.top_performer import TopPerformer
 from app.models.training_session import TrainingSession
@@ -28,6 +28,7 @@ from app.models.compliance import (
     CandidateDisclosure,
     RubricValidationRecord,
 )
+from app.models.invitation import Invitation, InvitationType, InvitationStatus
 
 __all__ = [
     "Organization",
@@ -39,6 +40,7 @@ __all__ = [
     "Valence",
     "RoleProfile",
     "ScoringRubric",
+    "RubricSource",
     "Scenario",
     "TopPerformer",
     "TrainingSession",
@@ -67,4 +69,7 @@ __all__ = [
     "CandidateDemographics",
     "CandidateDisclosure",
     "RubricValidationRecord",
+    "Invitation",
+    "InvitationType",
+    "InvitationStatus",
 ]

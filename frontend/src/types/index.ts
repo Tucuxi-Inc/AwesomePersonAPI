@@ -76,6 +76,16 @@ export interface RoleProfile {
   updated_at: string;
 }
 
+export interface RoleTemplateCategory {
+  name: string;
+  templates: RoleProfile[];
+}
+
+export interface RoleTemplatesByCategory {
+  categories: RoleTemplateCategory[];
+  total: number;
+}
+
 export interface TraitRequirement {
   trait_id: string;
   level: string;
@@ -416,4 +426,287 @@ export interface DisclosureContent {
   consent_required: boolean;
   consent_text: string | null;
   jurisdiction: string | null;
+}
+
+// --- Profile Development Types ---
+
+export type ProfilingStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+export type TrainingSessionStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type ProfilingPhase = 'NOT_STARTED' | 'INTRODUCTION' | 'RAPPORT_BUILDING' | 'TRAIT_EXPLORATION' | 'DEEP_DIVE' | 'REFLECTION' | 'CLOSING' | 'COMPLETED';
+
+export interface TopPerformer {
+  id: string;
+  organization_id: string;
+  name: string | null;
+  employee_id: string | null;
+  email: string | null;
+  is_anonymized: boolean;
+  job_title: string;
+  department: string | null;
+  role_category: string;
+  tenure_months: number | null;
+  performance_metrics: Record<string, unknown> | null;
+  profiling_status: ProfilingStatus;
+  trait_profile: Record<string, TraitProfileData> | null;
+  counter_indicators_identified: CounterIndicatorEvidence[];
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TraitProfileData {
+  scores: number[];
+  evidence: string[];
+  average_score: number | null;
+  confidence: number;
+}
+
+export interface CounterIndicatorEvidence {
+  trait_id: string;
+  context: string;
+  evidence: string;
+  severity?: string;
+}
+
+export interface TopPerformerCreate {
+  name?: string;
+  employee_id?: string;
+  email?: string;
+  job_title: string;
+  department?: string;
+  role_category: string;
+  tenure_months?: number;
+  performance_metrics?: Record<string, unknown>;
+  is_anonymized?: boolean;
+  notes?: string;
+}
+
+export interface TrainingSession {
+  id: string;
+  top_performer_id: string;
+  interviewer_id: string | null;
+  session_number: number;
+  status: TrainingSessionStatus;
+  scheduled_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_minutes: number | null;
+  target_traits: string[];
+  focus_areas: string | null;
+  ai_summary: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrainingSessionDetail extends TrainingSession {
+  transcript: TrainingExchange[];
+  extracted_evidence: ExtractedEvidence[];
+  trait_signals: TraitSignal[];
+  counter_indicators_mentioned: CounterIndicatorMention[];
+  interviewer_notes: string | null;
+}
+
+export interface TrainingExchange {
+  role: 'interviewer' | 'performer';
+  content: string;
+  timestamp: string;
+}
+
+export interface ExtractedEvidence {
+  trait_id: string;
+  evidence_type: string;
+  text: string;
+  confidence: number;
+}
+
+export interface TraitSignal {
+  trait_id: string;
+  signal: 'positive' | 'negative' | 'neutral';
+  strength: number;
+  source: string;
+}
+
+export interface CounterIndicatorMention {
+  trait_id: string;
+  context: string;
+  quote: string;
+}
+
+export interface ProfilingStartRequest {
+  top_performer_id: string;
+  target_traits: string[];
+  role_context?: Record<string, unknown>;
+}
+
+export interface ProfilingPromptResponse {
+  session_id: string;
+  phase: ProfilingPhase;
+  prompt_text: string;
+  progress: ProfilingProgress;
+  trait_being_explored: string | null;
+  is_complete: boolean;
+}
+
+export interface ProfilingProgress {
+  current_trait_index: number;
+  total_traits: number;
+  exchanges_count: number;
+  traits_explored: string[];
+}
+
+export interface ProfilingCompleteResponse {
+  session_id: string;
+  summary: string;
+  traits_profiled: string[];
+  signals_extracted: number;
+  patterns_identified: number;
+  counter_indicators_found: number;
+}
+
+export interface ExtractedSignal {
+  trait_id: string;
+  trait_name: string;
+  signal_type: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+  strength: number;
+  evidence_text: string;
+  behavioral_indicator: string;
+  context: string;
+  confidence: number;
+}
+
+export interface BehavioralPattern {
+  trait_id: string;
+  trait_name: string;
+  pattern_description: string;
+  frequency: 'ALWAYS' | 'OFTEN' | 'SOMETIMES' | 'RARELY';
+  example_quotes: string[];
+  implications_for_role: string;
+}
+
+export interface TraitExtractionResult {
+  session_id: string;
+  top_performer_id: string;
+  extracted_signals: ExtractedSignal[];
+  behavioral_patterns: BehavioralPattern[];
+  counter_indicators: CounterIndicatorSignal[];
+  trait_scores: Record<string, TraitScoreData>;
+  summary: string;
+}
+
+export interface CounterIndicatorSignal {
+  trait_id: string;
+  trait_name: string;
+  context: string;
+  evidence: string;
+  role_categories_affected: string[];
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
+export interface TraitScoreData {
+  trait_name: string;
+  score: number | null;
+  confidence: number;
+  evidence_count: number;
+  positive_signals: number;
+  negative_signals: number;
+}
+
+export interface RubricGenerationRequest {
+  role_category: string;
+  top_performer_ids: string[];
+  target_trait_ids: string[];
+  role_context?: Record<string, unknown>;
+  base_rubric_id?: string;
+}
+
+export interface GeneratedBehavioralAnchor {
+  score: number;
+  description: string;
+  example_behaviors: string[];
+  evidence_indicators: string[];
+}
+
+export interface GeneratedRubricItem {
+  trait_id: string;
+  trait_name: string;
+  behavioral_anchors: GeneratedBehavioralAnchor[];
+  primary_probes: string[];
+  follow_up_probes: string[];
+  star_indicators: Record<string, string[]>;
+  job_relatedness_rationale: string;
+  derivation_notes: string;
+  confidence: number;
+}
+
+export interface GeneratedRubric {
+  name: string;
+  description: string;
+  organization_id: string;
+  role_category: string;
+  items: GeneratedRubricItem[];
+  derivation_metadata: Record<string, unknown>;
+  research_basis: string | null;
+  created_at: string;
+}
+
+export interface ProfileSynthesisRequest {
+  top_performer_ids: string[];
+  role_category: string;
+}
+
+export interface SynthesizedPattern {
+  trait_id: string;
+  trait_name: string;
+  patterns: BehavioralPattern[];
+  average_score: number | null;
+  confidence: number;
+}
+
+export interface ProfileSynthesisResponse {
+  role_category: string;
+  top_performer_count: number;
+  synthesized_patterns: SynthesizedPattern[];
+  common_strengths: string[];
+  role_success_indicators: string[];
+  generated_at: string;
+}
+
+// --- Self-Service/Invitation Types ---
+
+export type InvitationType = 'CANDIDATE_INTERVIEW' | 'TOP_PERFORMER_PROFILING';
+export type InvitationStatus = 'PENDING' | 'VIEWED' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED' | 'REVOKED';
+
+export interface InvitationValidateResponse {
+  valid: boolean;
+  invitation_type: InvitationType | null;
+  recipient_name: string | null;
+  organization_name: string | null;
+  role_name: string | null;
+  custom_message: string | null;
+  expires_at: string | null;
+  error: string | null;
+}
+
+export interface DisclosureSection {
+  heading: string;
+  content: string;
+}
+
+export interface DisclosureResponse {
+  title: string;
+  sections: DisclosureSection[];
+  consent_required: boolean;
+  consent_text: string | null;
+  jurisdiction: string | null;
+}
+
+export interface SelfServiceSessionResponse {
+  session_id: string;
+  session_type: 'interview' | 'profiling';
+  next_prompt: string;
+  prompt_type: string;
+  trait_name: string | null;
+  overall_progress: number;
+  is_complete: boolean;
 }

@@ -11,12 +11,14 @@ import {
   Brain,
   ClipboardList,
   Shield,
+  UserCheck,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Candidates', href: '/candidates', icon: Users },
   { name: 'Interviews', href: '/interviews', icon: ClipboardList },
+  { name: 'Profiling', href: '/profiling', icon: UserCheck },
   { name: 'Roles', href: '/roles', icon: Briefcase },
   { name: 'Traits', href: '/traits', icon: Brain },
   { name: 'Rubrics', href: '/rubrics', icon: FileText },

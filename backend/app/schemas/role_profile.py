@@ -90,3 +90,17 @@ class RoleProfileClone(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
+
+
+class RoleTemplateCategory(BaseModel):
+    """Schema for a category of role templates."""
+
+    name: str
+    templates: List[RoleProfileResponse]
+
+
+class RoleTemplatesByCategory(BaseModel):
+    """Schema for role templates grouped by category."""
+
+    categories: List[RoleTemplateCategory]
+    total: int

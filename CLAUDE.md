@@ -92,6 +92,23 @@ docker-compose exec frontend npm run dev
 - Backend API: http://localhost:8003
 - API Docs: http://localhost:8003/docs
 
+### Test Credentials
+After running `docker-compose exec backend python -m app.db.init_db`:
+- **Admin User**: `admin@apapi.dev` / `changeme123`
+- **Test User**: `test@example.com` / `changeme123`
+
+### API Testing
+```bash
+# Get auth token
+TOKEN=$(curl -s -X POST http://localhost:8003/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@apapi.dev","password":"changeme123"}' | jq -r '.access_token')
+
+# Example authenticated request
+curl -s http://localhost:8003/api/v1/traits \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
 ## Architecture Patterns
 
 ### Core Services (backend/app/services/)

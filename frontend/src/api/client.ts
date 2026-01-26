@@ -114,6 +114,8 @@ export const api = {
   getRoleProfiles: (params?: { skip?: number; limit?: number; search?: string; templates_only?: boolean }) =>
     client.get('/roles', { params }),
 
+  getRoleTemplates: () => client.get('/roles/templates'),
+
   getRoleProfile: (id: string) => client.get(`/roles/${id}`),
 
   createRoleProfile: (data: { name: string; role_category: string; description?: string }) =>
@@ -256,4 +258,161 @@ export const api = {
 
   getAssessmentAudit: (assessmentId: string) =>
     client.get(`/compliance/audit/assessment/${assessmentId}`),
+
+  // Profile Development - Top Performers
+  getTopPerformers: (params?: {
+    role_category?: string;
+    profiling_status?: string;
+    is_active?: boolean;
+    skip?: number;
+    limit?: number;
+  }) => client.get('/profiling/top-performers', { params }),
+
+  getTopPerformer: (id: string) => client.get(`/profiling/top-performers/${id}`),
+
+  createTopPerformer: (data: {
+    name?: string;
+    employee_id?: string;
+    email?: string;
+    job_title: string;
+    department?: string;
+    role_category: string;
+    tenure_months?: number;
+    performance_metrics?: Record<string, unknown>;
+    is_anonymized?: boolean;
+    notes?: string;
+  }) => client.post('/profiling/top-performers', data),
+
+  updateTopPerformer: (id: string, data: Partial<{
+    name: string;
+    employee_id: string;
+    email: string;
+    job_title: string;
+    department: string;
+    role_category: string;
+    tenure_months: number;
+    performance_metrics: Record<string, unknown>;
+    profiling_status: string;
+    notes: string;
+    is_active: boolean;
+  }>) => client.patch(`/profiling/top-performers/${id}`, data),
+
+  deleteTopPerformer: (id: string) => client.delete(`/profiling/top-performers/${id}`),
+
+  // Profile Development - Training Sessions
+  getTrainingSessions: (performerId: string, params?: {
+    status?: string;
+    skip?: number;
+    limit?: number;
+  }) => client.get(`/profiling/top-performers/${performerId}/sessions`, { params }),
+
+  getTrainingSession: (sessionId: string) =>
+    client.get(`/profiling/sessions/${sessionId}`),
+
+  createTrainingSession: (data: {
+    top_performer_id: string;
+    target_traits: string[];
+    focus_areas?: string;
+    scheduled_at?: string;
+  }) => client.post('/profiling/sessions', data),
+
+  updateTrainingSession: (sessionId: string, data: Partial<{
+    target_traits: string[];
+    focus_areas: string;
+    scheduled_at: string;
+    status: string;
+    interviewer_notes: string;
+  }>) => client.patch(`/profiling/sessions/${sessionId}`, data),
+
+  // Profile Development - Interactive Profiling
+  startProfilingSession: (data: {
+    top_performer_id: string;
+    target_traits: string[];
+    role_context?: Record<string, unknown>;
+  }) => client.post('/profiling/sessions/start', data),
+
+  submitProfilingResponse: (sessionId: string, data: { response_text: string }) =>
+    client.post(`/profiling/sessions/${sessionId}/respond`, data),
+
+  endProfilingSession: (sessionId: string) =>
+    client.post(`/profiling/sessions/${sessionId}/end`),
+
+  extractTraitsFromSession: (sessionId: string) =>
+    client.post(`/profiling/sessions/${sessionId}/extract`),
+
+  // Profile Development - Rubric Generation
+  generateRubric: (data: {
+    role_category: string;
+    top_performer_ids: string[];
+    target_trait_ids: string[];
+    role_context?: Record<string, unknown>;
+    base_rubric_id?: string;
+  }) => client.post('/profiling/rubrics/generate', data),
+
+  generateAndSaveRubric: (data: {
+    role_category: string;
+    top_performer_ids: string[];
+    target_trait_ids: string[];
+    role_context?: Record<string, unknown>;
+    base_rubric_id?: string;
+  }) => client.post('/profiling/rubrics/generate-and-save', data),
+
+  // Profile Development - Synthesis
+  synthesizeProfiles: (data: {
+    top_performer_ids: string[];
+    role_category: string;
+  }) => client.post('/profiling/synthesize', data),
+
+  // Invitations (Admin)
+  getInvitations: (params?: {
+    invitation_type?: string;
+    status?: string;
+    skip?: number;
+    limit?: number;
+  }) => client.get('/invitations', { params }),
+
+  createCandidateInvitation: (data: {
+    candidate_id: string;
+    recipient_email: string;
+    recipient_name?: string;
+    trait_ids?: string[];
+    role_profile_id?: string;
+    expires_in_days?: number;
+    custom_message?: string;
+  }) => client.post('/invitations/candidate', data),
+
+  createTopPerformerInvitation: (data: {
+    top_performer_id: string;
+    recipient_email: string;
+    recipient_name?: string;
+    trait_ids?: string[];
+    expires_in_days?: number;
+    custom_message?: string;
+  }) => client.post('/invitations/top-performer', data),
+
+  getInvitation: (id: string) => client.get(`/invitations/${id}`),
+
+  resendInvitation: (id: string) => client.post(`/invitations/${id}/resend`),
+
+  revokeInvitation: (id: string) => client.post(`/invitations/${id}/revoke`),
+
+  // Public Self-Service (no auth required)
+  validateInvitation: (token: string) =>
+    client.get(`/public/invite/${token}/validate`),
+
+  getInvitationDisclosure: (token: string) =>
+    client.get(`/public/invite/${token}/disclosure`),
+
+  startSelfServiceSession: (token: string, consentGiven: boolean) =>
+    client.post(`/public/invite/${token}/start`, { token, consent_given: consentGiven }),
+
+  submitSelfServiceResponse: (token: string, sessionId: string, responseText: string) =>
+    client.post(`/public/invite/${token}/respond`, {
+      token,
+      session_id: sessionId,
+      response_text: responseText,
+    }),
+
+  endSelfServiceSession: (token: string) =>
+    client.post(`/public/invite/${token}/end`),
 };

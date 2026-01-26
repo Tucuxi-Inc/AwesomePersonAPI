@@ -12,6 +12,10 @@ import Interviews from '@/pages/Interviews';
 import Interview from '@/pages/Interview';
 import AssessmentResults from '@/pages/AssessmentResults';
 import { Compliance } from '@/pages/Compliance';
+import TopPerformers from '@/pages/TopPerformers';
+import ProfilingSession from '@/pages/ProfilingSession';
+import RoleTemplates from '@/pages/RoleTemplates';
+import InvitationLanding from '@/pages/InvitationLanding';
 
 function App() {
   return (
@@ -20,6 +24,7 @@ function App() {
         {/* Public routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/invite/:token" element={<InvitationLanding />} />
 
         {/* Protected routes */}
         <Route
@@ -35,9 +40,12 @@ function App() {
           <Route path="/interviews" element={<Interviews />} />
           <Route path="/interviews/:sessionId" element={<Interview />} />
           <Route path="/interviews/:sessionId/results" element={<AssessmentResults />} />
-          <Route path="/roles" element={<Placeholder title="Role Profiles" description="Configure role requirements and trait mappings" />} />
+          <Route path="/roles" element={<RoleTemplates />} />
+          <Route path="/roles/:roleId" element={<Placeholder title="Role Profile" description="View and edit role profile details" />} />
           <Route path="/traits" element={<Traits />} />
           <Route path="/rubrics" element={<Placeholder title="Scoring Rubrics" description="View and customize assessment rubrics" />} />
+          <Route path="/profiling" element={<TopPerformers />} />
+          <Route path="/profiling/:sessionId" element={<ProfilingSession />} />
           <Route path="/compliance" element={<Compliance />} />
           <Route path="/settings" element={<Placeholder title="Settings" description="Configure your organization and preferences" />} />
         </Route>

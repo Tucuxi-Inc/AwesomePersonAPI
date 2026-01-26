@@ -12,6 +12,7 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from app.models.organization import Organization
     from app.models.training_session import TrainingSession
+    from app.models.invitation import Invitation
 
 
 class TopPerformer(Base, UUIDMixin, TimestampMixin):
@@ -61,6 +62,11 @@ class TopPerformer(Base, UUIDMixin, TimestampMixin):
     organization: Mapped["Organization"] = relationship("Organization", back_populates="top_performers")
     training_sessions: Mapped[List["TrainingSession"]] = relationship(
         "TrainingSession",
+        back_populates="top_performer",
+        cascade="all, delete-orphan",
+    )
+    invitations: Mapped[List["Invitation"]] = relationship(
+        "Invitation",
         back_populates="top_performer",
         cascade="all, delete-orphan",
     )

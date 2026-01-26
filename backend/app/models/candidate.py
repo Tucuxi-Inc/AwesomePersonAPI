@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.resume import Resume
     from app.models.interview_session import InterviewSession
     from app.models.assessment_report import AssessmentReport
+    from app.models.invitation import Invitation
 
 
 class Candidate(Base, UUIDMixin, TimestampMixin):
@@ -71,6 +72,11 @@ class Candidate(Base, UUIDMixin, TimestampMixin):
     )
     assessment_reports: Mapped[List["AssessmentReport"]] = relationship(
         "AssessmentReport",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+    )
+    invitations: Mapped[List["Invitation"]] = relationship(
+        "Invitation",
         back_populates="candidate",
         cascade="all, delete-orphan",
     )

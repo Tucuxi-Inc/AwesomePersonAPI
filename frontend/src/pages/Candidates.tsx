@@ -19,7 +19,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  Link2,
+  Copy,
+  Check,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const statusConfig: Record<CandidateStatus, { label: string; color: string }> = {
   NEW: { label: 'New', color: 'bg-blue-100 text-blue-800' },
@@ -44,6 +55,13 @@ export default function Candidates() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const pageSize = 10;
+
+  // Invitation dialog state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteCandidate, setInviteCandidate] = useState<Candidate | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Fetch candidates
   useEffect(() => {
@@ -88,6 +106,48 @@ export default function Candidates() {
   const handleViewResults = (candidateId: string) => {
     // TODO: Implement viewing past interview results
     navigate(`/candidates/${candidateId}/interviews`);
+  };
+
+  // Open invite dialog
+  const handleOpenInviteDialog = (candidate: Candidate) => {
+    setInviteCandidate(candidate);
+    setInviteLink(null);
+    setLinkCopied(false);
+    setInviteDialogOpen(true);
+  };
+
+  // Create invitation
+  const handleCreateInvitation = async () => {
+    if (!inviteCandidate) return;
+
+    setInviteLoading(true);
+    try {
+      const response = await api.createCandidateInvitation({
+        candidate_id: inviteCandidate.id,
+        recipient_email: inviteCandidate.email,
+        recipient_name: inviteCandidate.full_name,
+        custom_message: `You've been invited to complete an interview assessment.`,
+      });
+      // Build full link from token
+      const baseUrl = window.location.origin;
+      setInviteLink(`${baseUrl}/invite/${response.data.token}`);
+    } catch (err) {
+      console.error('Failed to create invitation:', err);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  // Copy link to clipboard
+  const handleCopyLink = async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -241,6 +301,14 @@ export default function Candidates() {
                       <Play className="mr-1.5 h-4 w-4" />
                       Interview
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenInviteDialog(candidate)}
+                    >
+                      <Link2 className="mr-1.5 h-4 w-4" />
+                      Send Invite
+                    </Button>
                     {candidate.status === 'ASSESSED' && (
                       <Button
                         variant="outline"
@@ -293,6 +361,75 @@ export default function Candidates() {
           )}
         </div>
       )}
+
+      {/* Invitation Dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Interview Invitation</DialogTitle>
+            <DialogDescription>
+              Generate a self-service interview link for {inviteCandidate?.full_name}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {!inviteLink ? (
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Click the button below to generate a unique interview invitation link that will
+                  be sent to <strong>{inviteCandidate?.email}</strong>.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  The link will expire in 7 days.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium mb-2">Invitation Link:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs bg-background p-2 rounded border overflow-x-auto">
+                      {inviteLink}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyLink}
+                    >
+                      {linkCopied ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Share this link with the candidate. They will be shown disclosure information and
+                  can then complete their interview assessment.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            {!inviteLink ? (
+              <>
+                <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateInvitation} disabled={inviteLoading}>
+                  {inviteLoading ? 'Generating...' : 'Generate Link'}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setInviteDialogOpen(false)}>
+                Done
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

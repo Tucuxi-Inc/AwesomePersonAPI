@@ -15,9 +15,44 @@ from app.schemas.role_profile import (
     RoleProfileResponse,
     RoleProfileList,
     RoleProfileClone,
+    RoleTemplatesByCategory,
+    RoleTemplateCategory,
 )
 
 router = APIRouter()
+
+
+@router.get("/templates", response_model=RoleTemplatesByCategory)
+async def list_role_templates(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> RoleTemplatesByCategory:
+    """List all role templates grouped by category."""
+    query = select(RoleProfile).where(
+        RoleProfile.is_template == True,
+        RoleProfile.is_active == True,
+    ).order_by(RoleProfile.role_category, RoleProfile.name)
+
+    result = await db.execute(query)
+    templates = result.scalars().all()
+
+    # Group by category
+    categories_dict: dict[str, list[RoleProfile]] = {}
+    for template in templates:
+        if template.role_category not in categories_dict:
+            categories_dict[template.role_category] = []
+        categories_dict[template.role_category].append(template)
+
+    # Convert to response format
+    categories = [
+        RoleTemplateCategory(
+            name=cat_name,
+            templates=cat_templates,
+        )
+        for cat_name, cat_templates in sorted(categories_dict.items())
+    ]
+
+    return RoleTemplatesByCategory(categories=categories, total=len(templates))
 
 
 @router.get("", response_model=RoleProfileList)

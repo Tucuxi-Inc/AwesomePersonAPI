@@ -13,9 +13,12 @@ from app.models import (
     Trait,
     TraitValenceMapping,
     ScoringRubric,
+    RoleProfile,
+    RubricSource,
 )
 from app.data.traits import TRAITS
 from app.data.default_rubrics import DEFAULT_RUBRICS
+from app.data.role_templates import ROLE_TEMPLATES
 
 
 def create_superuser(db: Session) -> User:
@@ -160,9 +163,93 @@ def seed_default_rubrics(db: Session, trait_id_map: dict[str, uuid.UUID]) -> Non
             star_indicators=rubric_data.get("star_indicators"),
             is_default=True,
             is_active=True,
+            rubric_source=RubricSource.RESEARCH_DEFAULT,
         )
         db.add(rubric)
         print(f"Created default rubric: {rubric.name}")
+
+    db.commit()
+
+
+def seed_role_templates(db: Session, trait_id_map: dict[str, uuid.UUID]) -> None:
+    """Seed default role templates."""
+    from sqlalchemy import select
+
+    def convert_trait_name_to_id(trait_name: str) -> Optional[uuid.UUID]:
+        """Convert trait name to ID, return None if not found."""
+        # First try direct match
+        if trait_name in trait_id_map:
+            return trait_id_map[trait_name]
+        # Try case-insensitive match
+        for name, trait_id in trait_id_map.items():
+            if name.lower() == trait_name.lower():
+                return trait_id
+        print(f"Warning: Trait not found: {trait_name}")
+        return None
+
+    for template_data in ROLE_TEMPLATES:
+        # Check if role template already exists
+        stmt = select(RoleProfile).where(
+            RoleProfile.name == template_data["name"],
+            RoleProfile.is_template == True,
+        )
+        existing = db.execute(stmt).scalar_one_or_none()
+
+        if existing:
+            print(f"Role template already exists: {template_data['name']}")
+            continue
+
+        # Convert trait names to IDs in critical_traits
+        critical_traits = []
+        for trait in template_data.get("critical_traits", []):
+            trait_id = convert_trait_name_to_id(trait["trait_name"])
+            if trait_id:
+                critical_traits.append({
+                    "trait_id": str(trait_id),
+                    "level": trait["level"],
+                    "weight": trait["weight"],
+                    "rationale": trait.get("rationale", ""),
+                })
+
+        # Convert trait names to IDs in positive_traits
+        positive_traits = []
+        for trait in template_data.get("positive_traits", []):
+            trait_id = convert_trait_name_to_id(trait["trait_name"])
+            if trait_id:
+                positive_traits.append({
+                    "trait_id": str(trait_id),
+                    "level": trait["level"],
+                    "weight": trait["weight"],
+                    "rationale": trait.get("rationale", ""),
+                })
+
+        # Convert trait names to IDs in counter_indicators
+        counter_indicators = []
+        for ci in template_data.get("counter_indicators", []):
+            trait_id = convert_trait_name_to_id(ci["trait_name"])
+            if trait_id:
+                counter_indicators.append({
+                    "trait_id": str(trait_id),
+                    "threshold": ci["threshold"],
+                    "reason": ci["reason"],
+                })
+
+        # Create role template
+        role_template = RoleProfile(
+            name=template_data["name"],
+            description=template_data.get("description"),
+            department=template_data.get("department"),
+            level=template_data.get("level"),
+            role_category=template_data["role_category"],
+            critical_traits=critical_traits,
+            positive_traits=positive_traits,
+            counter_indicators=counter_indicators,
+            valence_notes=template_data.get("valence_notes", {}),
+            is_template=True,
+            is_active=True,
+        )
+        db.add(role_template)
+        print(f"Created role template: {role_template.name}")
 
     db.commit()
 
@@ -192,6 +279,10 @@ def init_db() -> None:
         # Seed default rubrics
         print("\nSeeding default rubrics...")
         seed_default_rubrics(db, trait_id_map)
+
+        # Seed role templates
+        print("\nSeeding role templates...")
+        seed_role_templates(db, trait_id_map)
 
         print("\nDatabase initialization complete!")
 

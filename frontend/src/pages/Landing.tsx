@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAuthStore } from '@/store/authStore';
 import {
   Brain,
   Target,
@@ -12,6 +13,13 @@ import {
 } from 'lucide-react';
 
 export default function Landing() {
+  const { isAuthenticated, isLoading } = useAuthStore();
+
+  // If authenticated, redirect to dashboard
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Header */}
