@@ -142,3 +142,191 @@ export interface PaginatedResponse<T> {
   items: T[];
   total: number;
 }
+
+// --- Candidate Types ---
+
+export type CandidateStatus =
+  | 'NEW'
+  | 'SCREENING'
+  | 'INTERVIEWING'
+  | 'ASSESSED'
+  | 'OFFER'
+  | 'HIRED'
+  | 'REJECTED'
+  | 'WITHDRAWN';
+
+export interface Candidate {
+  id: string;
+  organization_id: string;
+  role_profile_id: string | null;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  current_title: string | null;
+  current_company: string | null;
+  linkedin_url: string | null;
+  years_experience: number | null;
+  source: string | null;
+  referrer: string | null;
+  status: CandidateStatus;
+  notes: string | null;
+  tags: string[];
+  custom_fields: Record<string, unknown> | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- Interview Types ---
+
+export type InterviewStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export type ProbeType =
+  | 'INTRODUCTION'
+  | 'PRIMARY'
+  | 'FOLLOW_UP'
+  | 'RECURSION'
+  | 'REFLECTION'
+  | 'CONFLICT'
+  | 'CLOSING'
+  | 'COMPLETE';
+
+export type ProbePhase = 'PRIMARY' | 'FOLLOW_UP' | 'RECURSION' | 'REFLECTION' | 'CONFLICT' | 'COMPLETE';
+
+export type EvidenceType = 'BEHAVIORAL' | 'HYPOTHETICAL' | 'SELF_REPORT' | 'OBSERVED';
+
+export type Recommendation = 'STRONG_HIRE' | 'HIRE' | 'HOLD' | 'NO_HIRE';
+
+export interface InterviewConfigRequest {
+  max_duration_minutes?: number;
+  max_follow_ups_per_trait?: number;
+  confidence_threshold_for_recursion?: number;
+  require_reflection?: boolean;
+  enable_resume_customization?: boolean;
+  enable_conflict_probing?: boolean;
+}
+
+export interface StartInterviewRequest {
+  candidate_id: string;
+  rubric_id?: string;
+  trait_ids?: string[];
+  config?: InterviewConfigRequest;
+}
+
+export interface TraitProgress {
+  trait_id: string;
+  trait_name: string;
+  phase: ProbePhase;
+  probes_used: number;
+  evidence_count: number;
+  behavioral_evidence_count: number;
+  confidence: number;
+  star_coverage: Record<string, boolean>;
+  has_conflict_example: boolean;
+  raw_score: number | null;
+  is_complete: boolean;
+}
+
+export interface InterviewPromptResponse {
+  session_id: string;
+  next_prompt: string;
+  prompt_type: ProbeType;
+  trait_id: string | null;
+  trait_name: string | null;
+  trait_progress: TraitProgress | null;
+  overall_progress: number;
+  can_end_interview: boolean;
+  interview_complete: boolean;
+}
+
+export interface CandidateResponseRequest {
+  response_text: string;
+}
+
+export interface InterviewSession {
+  id: string;
+  candidate_id: string;
+  status: InterviewStatus;
+  session_type: string;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_minutes: number | null;
+  target_traits: string[];
+  overall_progress: number;
+  traits_completed: number;
+  traits_total: number;
+}
+
+export interface InterviewExchange {
+  prompt: string;
+  prompt_type: ProbeType;
+  trait_id: string | null;
+  response: string;
+  timestamp: string;
+}
+
+export interface EvidenceItem {
+  id: string;
+  trait_id: string;
+  source_type: EvidenceType;
+  source_text: string;
+  weight: number;
+  trait_signal: string;
+  signal_strength: number;
+  star_components: {
+    situation: boolean;
+    task: boolean;
+    action: boolean;
+    result: boolean;
+  };
+  contains_conflict: boolean;
+  contains_failure: boolean;
+}
+
+// --- Assessment Types ---
+
+export interface TraitScoreResponse {
+  trait_id: string;
+  trait_name: string;
+  raw_score: number;
+  calibrated_score: number;
+  confidence: number;
+  explanation: string;
+  evidence_summary: string;
+  signal_gaps: string[];
+}
+
+export interface StrengthItem {
+  trait_name: string;
+  score: number;
+  evidence: string;
+}
+
+export interface DevelopmentArea {
+  trait_name: string;
+  score: number;
+  recommendation: string;
+}
+
+export interface CounterIndicatorFlag {
+  trait_name: string;
+  threshold: string;
+  actual_score: number;
+  reason: string;
+  severity: 'WARNING' | 'CRITICAL';
+}
+
+export interface AssessmentSummaryResponse {
+  session_id: string;
+  candidate_id: string;
+  recommendation: Recommendation;
+  recommendation_rationale: string;
+  composite_score: number;
+  evidence_quality: string;
+  confidence: number;
+  trait_scores: TraitScoreResponse[];
+  key_strengths: StrengthItem[];
+  development_areas: DevelopmentArea[];
+  counter_indicator_flags: CounterIndicatorFlag[];
+  assessment_summary: string;
+}

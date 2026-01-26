@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { api } from '@/api/client';
+import { User } from '@/types';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,7 +11,24 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const location = useLocation();
-  const { isAuthenticated, isLoading, user } = useAuthStore();
+  const { isAuthenticated, isLoading, user, accessToken, setUser, logout, setLoading } = useAuthStore();
+
+  // Initialize auth state on mount
+  useEffect(() => {
+    const initAuth = async () => {
+      if (accessToken && !user) {
+        try {
+          const response = await api.getMe();
+          setUser(response.data as User);
+        } catch {
+          logout();
+        }
+      }
+      setLoading(false);
+    };
+
+    initAuth();
+  }, [accessToken, user, setUser, logout, setLoading]);
 
   if (isLoading) {
     return (

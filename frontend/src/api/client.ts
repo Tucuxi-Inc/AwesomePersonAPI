@@ -145,4 +145,75 @@ export const api = {
     client.post(`/rubrics/${id}/clone`, data),
 
   deleteRubric: (id: string) => client.delete(`/rubrics/${id}`),
+
+  // Candidates
+  getCandidates: (params?: { skip?: number; limit?: number; search?: string; status?: string }) =>
+    client.get('/candidates', { params }),
+
+  getCandidate: (id: string) => client.get(`/candidates/${id}`),
+
+  createCandidate: (data: {
+    email: string;
+    full_name: string;
+    phone?: string;
+    current_title?: string;
+    current_company?: string;
+    linkedin_url?: string;
+    years_experience?: number;
+    source?: string;
+    referrer?: string;
+    role_profile_id?: string;
+    notes?: string;
+    tags?: string[];
+  }) => client.post('/candidates', data),
+
+  updateCandidate: (id: string, data: Partial<{
+    email: string;
+    full_name: string;
+    phone: string;
+    current_title: string;
+    current_company: string;
+    linkedin_url: string;
+    years_experience: number;
+    source: string;
+    referrer: string;
+    role_profile_id: string;
+    status: string;
+    notes: string;
+    tags: string[];
+    is_active: boolean;
+  }>) => client.put(`/candidates/${id}`, data),
+
+  deleteCandidate: (id: string) => client.delete(`/candidates/${id}`),
+
+  // Interviews
+  startInterview: (data: {
+    candidate_id: string;
+    rubric_id?: string;
+    trait_ids?: string[];
+    config?: {
+      max_duration_minutes?: number;
+      max_follow_ups_per_trait?: number;
+      confidence_threshold_for_recursion?: number;
+      require_reflection?: boolean;
+      enable_resume_customization?: boolean;
+      enable_conflict_probing?: boolean;
+    };
+  }) => client.post('/interviews/start', data),
+
+  submitResponse: (sessionId: string, data: { response_text: string }) =>
+    client.post(`/interviews/${sessionId}/respond`, data),
+
+  getInterviewSession: (sessionId: string) =>
+    client.get(`/interviews/${sessionId}`),
+
+  endInterview: (sessionId: string) =>
+    client.post(`/interviews/${sessionId}/end`),
+
+  getInterviewResult: (sessionId: string) =>
+    client.get(`/interviews/${sessionId}/result`),
+
+  // Interview Sessions list (for candidate's interview history)
+  getCandidateInterviews: (candidateId: string) =>
+    client.get(`/candidates/${candidateId}/interviews`),
 };

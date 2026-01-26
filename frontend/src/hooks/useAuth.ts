@@ -45,7 +45,7 @@ export function useAuth() {
         const userResponse = await api.getMe();
         setUser(userResponse.data as User);
 
-        navigate('/');
+        navigate('/dashboard');
         return { success: true };
       } catch (error: unknown) {
         const err = error as { response?: { data?: { detail?: string } } };

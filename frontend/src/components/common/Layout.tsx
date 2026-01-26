@@ -9,11 +9,13 @@ import {
   Settings,
   LogOut,
   Brain,
+  ClipboardList,
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Candidates', href: '/candidates', icon: Users },
+  { name: 'Interviews', href: '/interviews', icon: ClipboardList },
   { name: 'Roles', href: '/roles', icon: Briefcase },
   { name: 'Traits', href: '/traits', icon: Brain },
   { name: 'Rubrics', href: '/rubrics', icon: FileText },
@@ -31,7 +33,7 @@ export function Layout() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center h-16 px-6 border-b">
-            <Link to="/" className="flex items-center space-x-2">
+            <Link to="/dashboard" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold">AP</span>
               </div>
@@ -42,7 +44,9 @@ export function Layout() {
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1">
             {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
+              const isActive = item.href === '/dashboard'
+                ? location.pathname === '/dashboard'
+                : location.pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.name}
