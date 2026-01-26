@@ -88,18 +88,40 @@ docker-compose exec frontend npm run dev
 ```
 
 ### Access Points
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- Frontend: http://localhost:3003
+- Backend API: http://localhost:8003
+- API Docs: http://localhost:8003/docs
 
 ## Architecture Patterns
 
 ### Core Services (backend/app/services/)
 
-- **InterviewEngine**: Manages interview sessions using STAR+ methodology (Situation, Task, Action, Result + Reflection + Recursion). Determines when to probe deeper vs. move to next trait.
-- **TraitExtractor**: Uses LLM to extract behavioral evidence from responses, classifying as BEHAVIORAL, HYPOTHETICAL, SELF_REPORT, or OBSERVED.
-- **ScoreCalibrator**: Weights evidence by type (OBSERVED: 1.2, BEHAVIORAL: 1.0, HYPOTHETICAL: 0.5, SELF_REPORT: 0.3), applies role-specific valence adjustments, generates explanations.
-- **LLMClient**: Wrapper for Anthropic Claude API; always request structured JSON output for extraction/scoring tasks.
+- **InterviewEngine** (`interview_engine.py`): Main orchestrator for STAR+ methodology interviews. Manages session lifecycle, coordinates probe generation, processes responses, tracks progress, handles follow-ups/reflection/recursion.
+
+- **PatternAwareProbeGenerator** (`probe_generator.py`): Generates contextually intelligent probes using Universal Reasoning Patterns (URPs). Applies patterns like MC24 (assumption surfacing), MC35 (representation choice), IP7 (conflict exploration) based on conversation context.
+
+- **PatternAwareResponseAnalyzer** (`response_analyzer.py`): Analyzes candidate responses using URPs. Extracts evidence, classifies types (BEHAVIORAL/HYPOTHETICAL/SELF_REPORT/OBSERVED), assesses STAR completeness, detects omissions, recommends follow-ups.
+
+- **ResumeInformedProbeCustomizer** (`resume_customizer.py`): Customizes generic probes using resume details to make questions impossible to answer with rehearsed responses.
+
+- **ScoreCalibrator** (`score_calibrator.py`): Weights evidence by type (OBSERVED: 1.2, BEHAVIORAL: 1.0, HYPOTHETICAL: 0.5, SELF_REPORT: 0.3), matches to behavioral anchors, generates explanations, produces recommendations.
+
+- **LLMClient** (`llm_client.py`): Wrapper for Anthropic Claude API (Sonnet 4); always request structured JSON output for extraction/scoring tasks.
+
+### Universal Reasoning Patterns (URPs)
+
+The system uses cognitive patterns for intelligent probe generation:
+
+| Pattern | Purpose | When Applied |
+|---------|---------|--------------|
+| MC24 | Assumption Surfacing | First probe for trait |
+| MC35 | Representation Choice | Every probe generation |
+| MC38 | Abstraction Level | Surface-level responses |
+| MC44 | Solution Space | Low confidence situations |
+| IP3 | Active Listening | Detecting omissions |
+| IP7 | Conflict Exploration | Smooth/easy responses only |
+| IP11 | Trust Calibration | Self-report heavy evidence |
+| SP8 | Risk Identification | Resilience/adaptability traits |
 
 ### Key Data Concepts
 
