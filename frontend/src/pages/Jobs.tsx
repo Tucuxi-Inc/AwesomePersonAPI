@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -488,8 +488,8 @@ export default function Jobs() {
               </TableHeader>
               <TableBody>
                 {jobs.map((job) => (
-                  <>
-                    <TableRow key={job.id}>
+                  <React.Fragment key={job.id}>
+                    <TableRow>
                       <TableCell>
                         <Button
                           variant="ghost"
@@ -655,7 +655,7 @@ export default function Jobs() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -751,12 +751,15 @@ export default function Jobs() {
 
               <div className="col-span-2">
                 <Label htmlFor="roleProfile">Role Profile (for trait assessment)</Label>
-                <Select value={formRoleProfileId} onValueChange={setFormRoleProfileId}>
+                <Select
+                  value={formRoleProfileId || 'none'}
+                  onValueChange={(v) => setFormRoleProfileId(v === 'none' ? '' : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a role profile..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {roleProfiles.map((profile) => (
                       <SelectItem key={profile.id} value={profile.id}>
                         {profile.name} ({profile.role_category})

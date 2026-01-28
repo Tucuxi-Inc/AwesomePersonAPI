@@ -15,10 +15,14 @@ from app.models import (
     ScoringRubric,
     RoleProfile,
     RubricSource,
+    Job,
+    JobStatus,
+    Candidate,
 )
 from app.data.traits import TRAITS
 from app.data.default_rubrics import DEFAULT_RUBRICS
 from app.data.role_templates import ROLE_TEMPLATES
+from app.data.sample_jobs import SAMPLE_JOBS, SAMPLE_CANDIDATES
 
 
 def create_superuser(db: Session) -> User:
@@ -254,6 +258,102 @@ def seed_role_templates(db: Session, trait_id_map: dict[str, uuid.UUID]) -> None
     db.commit()
 
 
+def seed_sample_jobs(db: Session, org_id: uuid.UUID) -> dict[str, uuid.UUID]:
+    """Seed sample jobs for testing."""
+    from sqlalchemy import select
+
+    job_id_map = {}
+
+    # Get role profiles to link jobs
+    role_profile_map = {}
+    stmt = select(RoleProfile).where(RoleProfile.is_template == True)
+    profiles = db.execute(stmt).scalars().all()
+    for profile in profiles:
+        role_profile_map[profile.role_category] = profile.id
+
+    for job_data in SAMPLE_JOBS:
+        # Check if job already exists
+        stmt = select(Job).where(
+            Job.organization_id == org_id,
+            Job.title == job_data["title"],
+        )
+        existing = db.execute(stmt).scalar_one_or_none()
+
+        if existing:
+            print(f"Job already exists: {job_data['title']}")
+            job_id_map[job_data["title"]] = existing.id
+            continue
+
+        # Find matching role profile
+        role_profile_id = role_profile_map.get(job_data["role_category"])
+
+        job = Job(
+            organization_id=org_id,
+            title=job_data["title"],
+            description=job_data["description"],
+            department=job_data.get("department"),
+            location=job_data.get("location"),
+            employment_type=job_data.get("employment_type"),
+            role_profile_id=role_profile_id,
+            objective_requirements=job_data.get("objective_requirements", []),
+            nice_to_haves=job_data.get("nice_to_haves", []),
+            responsibilities=job_data.get("responsibilities", []),
+            suggested_traits=job_data.get("suggested_traits", []),
+            status=JobStatus.OPEN,
+        )
+        db.add(job)
+        db.flush()
+        job_id_map[job_data["title"]] = job.id
+        print(f"Created job: {job.title}")
+
+    db.commit()
+    return job_id_map
+
+
+def seed_sample_candidates(db: Session, org_id: uuid.UUID) -> dict[str, uuid.UUID]:
+    """Seed sample candidates for testing."""
+    from sqlalchemy import select
+
+    candidate_id_map = {}
+
+    for candidate_data in SAMPLE_CANDIDATES:
+        # Check if candidate already exists
+        stmt = select(Candidate).where(
+            Candidate.organization_id == org_id,
+            Candidate.email == candidate_data["email"],
+        )
+        existing = db.execute(stmt).scalar_one_or_none()
+
+        if existing:
+            print(f"Candidate already exists: {candidate_data['full_name']}")
+            candidate_id_map[candidate_data["email"]] = existing.id
+            continue
+
+        candidate = Candidate(
+            organization_id=org_id,
+            email=candidate_data["email"],
+            full_name=candidate_data["full_name"],
+            phone=candidate_data.get("phone"),
+            current_title=candidate_data.get("current_title"),
+            current_company=candidate_data.get("current_company"),
+            linkedin_url=candidate_data.get("linkedin_url"),
+            years_experience=candidate_data.get("years_experience"),
+            source=candidate_data.get("source"),
+            referrer=candidate_data.get("referrer"),
+            notes=candidate_data.get("notes"),
+            tags=candidate_data.get("tags", []),
+            status="NEW",
+            is_active=True,
+        )
+        db.add(candidate)
+        db.flush()
+        candidate_id_map[candidate_data["email"]] = candidate.id
+        print(f"Created candidate: {candidate.full_name}")
+
+    db.commit()
+    return candidate_id_map
+
+
 def init_db() -> None:
     """Initialize database with seed data."""
     print("Starting database initialization...")
@@ -283,6 +383,16 @@ def init_db() -> None:
         # Seed role templates
         print("\nSeeding role templates...")
         seed_role_templates(db, trait_id_map)
+
+        # Seed sample jobs
+        print("\nSeeding sample jobs...")
+        job_id_map = seed_sample_jobs(db, org.id)
+        print(f"Seeded {len(job_id_map)} jobs")
+
+        # Seed sample candidates
+        print("\nSeeding sample candidates...")
+        candidate_id_map = seed_sample_candidates(db, org.id)
+        print(f"Seeded {len(candidate_id_map)} candidates")
 
         print("\nDatabase initialization complete!")
 
