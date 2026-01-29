@@ -13,10 +13,12 @@ import {
   Shield,
   UserCheck,
   FolderOpen,
+  Zap,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Simple Mode', href: '/simple', icon: Zap },
   { name: 'Jobs', href: '/jobs', icon: FolderOpen },
   { name: 'Candidates', href: '/candidates', icon: Users },
   { name: 'Interviews', href: '/interviews', icon: ClipboardList },

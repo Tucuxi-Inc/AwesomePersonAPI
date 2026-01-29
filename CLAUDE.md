@@ -10,6 +10,19 @@ The AP API (Awesome Person API) is a talent assessment platform with two primary
 
 Core principles: **Traceability** (every score links to evidence), **Objectivity** (behavioral evidence over self-report), **Explainability** (human-readable rationale for every decision).
 
+### Two Operating Modes
+
+**Full Platform** - Complete assessment workflow with jobs, candidates, role profiles, custom rubrics, and detailed configuration. Best for enterprise use with ongoing hiring needs.
+
+**Simple Mode** - Streamlined 7-step wizard for quick assessments:
+1. Create assessment with job description → AI extracts requirements
+2. Review/edit requirements
+3. Add candidates (with optional resume upload)
+4. Select up to 5 traits to assess
+5. Send magic-link interview invitations
+6. View ranked results with scores and recommendations
+7. Export reports
+
 ## Technology Stack
 
 | Layer | Technology |
@@ -92,6 +105,13 @@ docker-compose exec frontend npm run dev
 - Backend API: http://localhost:8003
 - API Docs: http://localhost:8003/docs
 
+### Simple Mode Routes (Frontend)
+- `/simple` - Dashboard with assessment list
+- `/simple/new` - Create new assessment
+- `/simple/assessments/:id` - Assessment wizard (Steps 2-6)
+- `/simple/assessments/:id/results` - Results view with rankings
+- `/interview/:token` - Public interview page (magic link, no auth)
+
 ### Test Credentials
 After running `docker-compose exec backend python -m app.db.init_db`:
 - **Admin User**: `admin@apapi.dev` / `changeme123`
@@ -168,6 +188,18 @@ Evidence(
 5. If low confidence: request second example (recursion)
 6. Move to next trait when evidence sufficient
 7. Generate calibrated scores with full explanations
+
+### LLM-Powered Interview Intelligence
+
+The interview system uses Claude to:
+- **Extract Requirements**: Parse job descriptions to identify objective requirements (education, experience, skills)
+- **Generate Probes**: Create trait-specific behavioral questions using URPs, customized with job context and resume details
+- **Analyze Responses**: Evaluate candidate answers for STAR completeness, classify evidence types, detect omissions
+- **Generate Follow-ups**: Create contextually intelligent follow-up questions based on what was missing or unclear
+- **Calibrate Scores**: Weight evidence by type and match to behavioral anchors for each trait
+- **Generate Recommendations**: Produce STRONG_HIRE/HIRE/HOLD/NO_HIRE with rationale
+
+The system uses job description and resume context throughout to make questions impossible to answer with rehearsed responses.
 
 ## Domain Reference Documents
 

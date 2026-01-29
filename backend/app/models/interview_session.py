@@ -13,6 +13,7 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.candidate import Candidate
+    from app.models.simple_candidate import SimpleCandidate
     from app.models.exchange import Exchange
     from app.models.probe import Probe
     from app.models.evidence_item import EvidenceItem
@@ -36,9 +37,14 @@ class InterviewSession(Base, UUIDMixin, TimestampMixin):
 
     __tablename__ = "interview_sessions"
 
-    candidate_id: Mapped[uuid.UUID] = mapped_column(
+    candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("candidates.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,  # Nullable for Simple Mode interviews
+        index=True,
+    )
+    simple_candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("simple_candidates.id", ondelete="CASCADE"),
+        nullable=True,  # Used for Simple Mode interviews
         index=True,
     )
     interviewer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -136,7 +142,15 @@ class InterviewSession(Base, UUIDMixin, TimestampMixin):
     traits_total: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Relationships
-    candidate: Mapped["Candidate"] = relationship("Candidate", back_populates="interview_sessions")
+    candidate: Mapped[Optional["Candidate"]] = relationship(
+        "Candidate",
+        back_populates="interview_sessions",
+        foreign_keys=[candidate_id],
+    )
+    simple_candidate: Mapped[Optional["SimpleCandidate"]] = relationship(
+        "SimpleCandidate",
+        foreign_keys=[simple_candidate_id],
+    )
     exchanges: Mapped[List["Exchange"]] = relationship(
         "Exchange",
         back_populates="session",

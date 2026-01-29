@@ -560,4 +560,87 @@ export const api = {
 
   removeOverride: (jobId: string, candidateId: string) =>
     client.delete(`/jobs/${jobId}/candidates/${candidateId}/override`),
+
+  // ==================== SIMPLE MODE API ====================
+
+  // Simple Assessments
+  getSimpleAssessments: (params?: { skip?: number; limit?: number; status?: string }) =>
+    client.get('/simple/assessments', { params }),
+
+  getSimpleAssessment: (id: string) =>
+    client.get(`/simple/assessments/${id}`),
+
+  createSimpleAssessment: (data: { job_title: string; job_description: string }) =>
+    client.post('/simple/assessments', data),
+
+  deleteSimpleAssessment: (id: string) =>
+    client.delete(`/simple/assessments/${id}`),
+
+  // Step 2: Confirm Requirements
+  confirmSimpleRequirements: (id: string, data: {
+    requirements: Array<{
+      id?: string;
+      type: string;
+      requirement: string;
+      required: boolean;
+    }>;
+  }) => client.post(`/simple/assessments/${id}/requirements/confirm`, data),
+
+  // Step 3: Add Candidates
+  addSimpleCandidate: (assessmentId: string, data: {
+    email: string;
+    full_name: string;
+    phone?: string;
+  }) => client.post(`/simple/assessments/${assessmentId}/candidates`, data),
+
+  getSimpleCandidates: (assessmentId: string) =>
+    client.get(`/simple/assessments/${assessmentId}/candidates`),
+
+  getSimpleCandidate: (assessmentId: string, candidateId: string) =>
+    client.get(`/simple/assessments/${assessmentId}/candidates/${candidateId}`),
+
+  deleteSimpleCandidate: (assessmentId: string, candidateId: string) =>
+    client.delete(`/simple/assessments/${assessmentId}/candidates/${candidateId}`),
+
+  // Upload resume for Simple candidate
+  uploadSimpleCandidateResume: (assessmentId: string, candidateId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return client.post(`/simple/assessments/${assessmentId}/candidates/${candidateId}/resume`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  // Step 4: Select Traits (max 5)
+  selectSimpleTraits: (assessmentId: string, data: { trait_ids: string[] }) =>
+    client.post(`/simple/assessments/${assessmentId}/traits`, data),
+
+  // Step 5: Send Interview Invites
+  sendSimpleInvite: (assessmentId: string, candidateId: string) =>
+    client.post(`/simple/assessments/${assessmentId}/candidates/${candidateId}/send-invite`),
+
+  // Step 6: Get Results
+  getSimpleResults: (assessmentId: string) =>
+    client.get(`/simple/assessments/${assessmentId}/results`),
+
+  // Step 7: Export PDF (TODO)
+  exportSimplePdf: (assessmentId: string) =>
+    client.get(`/simple/assessments/${assessmentId}/export/pdf`, { responseType: 'blob' }),
+
+  // ==================== PUBLIC SIMPLE INTERVIEW API ====================
+  // These endpoints don't require auth - they use magic link tokens
+
+  getSimpleInterviewInfo: (token: string) =>
+    axios.get(`${API_URL}/api/v1/public/simple/${token}`),
+
+  startSimpleInterview: (token: string) =>
+    axios.post(`${API_URL}/api/v1/public/simple/${token}/start`),
+
+  submitSimpleInterviewResponse: (token: string, data: { response_text: string }) =>
+    axios.post(`${API_URL}/api/v1/public/simple/${token}/respond`, data),
+
+  getSimpleInterviewStatus: (token: string) =>
+    axios.get(`${API_URL}/api/v1/public/simple/${token}/status`),
 };

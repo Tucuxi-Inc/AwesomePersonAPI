@@ -904,7 +904,8 @@ async def start_simple_interview(
     # Create database session record
     db_session = InterviewSession(
         id=uuid.UUID(session_id),
-        candidate_id=None,  # Not linked to Candidate model, using SimpleCandidate
+        candidate_id=None,  # Not linked to Candidate model
+        simple_candidate_id=candidate.id,  # Linked to SimpleCandidate
         session_type="SIMPLE_MODE",
         status="IN_PROGRESS",
         started_at=datetime.now(timezone.utc),

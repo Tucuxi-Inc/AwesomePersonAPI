@@ -872,3 +872,205 @@ export interface JobCandidatesStats {
   pending: number;
   overridden: number;
 }
+
+// --- Simple Mode Types ---
+
+export type SimpleAssessmentStatus =
+  | 'DRAFT'
+  | 'REQUIREMENTS_PENDING'
+  | 'TRAITS_PENDING'
+  | 'CANDIDATES_PENDING'
+  | 'INTERVIEWING'
+  | 'COMPLETED';
+
+export type SimpleQualificationStatus = 'PENDING' | 'QUALIFIED' | 'NOT_QUALIFIED';
+
+export type SimpleInterviewStatus =
+  | 'NOT_STARTED'
+  | 'INVITED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'EXPIRED';
+
+export type APIKeyTier = 'FREE' | 'BASIC' | 'PRO' | 'ENTERPRISE';
+
+export interface SimpleAssessment {
+  id: string;
+  organization_id: string;
+  api_key_id: string | null;
+  created_by_id: string | null;
+  job_title: string;
+  job_description: string;
+  extracted_requirements: {
+    objective_requirements: ObjectiveRequirement[];
+    nice_to_haves: NiceToHave[];
+    responsibilities: string[];
+    suggested_traits: string[];
+  };
+  requirements_confirmed: boolean;
+  requirements_confirmed_at: string | null;
+  selected_trait_ids: string[];
+  status: SimpleAssessmentStatus;
+  completed_at: string | null;
+  total_candidates: number;
+  qualified_candidates: number;
+  interviews_completed: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SimpleTraitScore {
+  trait_id: string;
+  trait_name: string;
+  score: number; // 0-10 scale
+  explanation: string;
+}
+
+export interface SimpleCandidate {
+  id: string;
+  assessment_id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  resume_file_path: string | null;
+  resume_filename: string | null;
+  resume_raw_text: string | null;
+  resume_parsed_data: ParsedResumeData | null;
+  qualification_status: SimpleQualificationStatus;
+  qualification_results: RequirementResult[] | null;
+  qualification_gaps: GapItem[] | null;
+  magic_link_token: string | null;
+  magic_link_expires_at: string | null;
+  interview_status: SimpleInterviewStatus;
+  interview_session_id: string | null;
+  invited_at: string | null;
+  interview_started_at: string | null;
+  interview_completed_at: string | null;
+  trait_scores: SimpleTraitScore[] | null;
+  composite_score: number | null;
+  recommendation: Recommendation | null;
+  recommendation_rationale: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SimpleAssessmentCreate {
+  job_title: string;
+  job_description: string;
+}
+
+export interface SimpleAssessmentResponse extends SimpleAssessment {
+  candidates: SimpleCandidate[];
+  selected_traits: Trait[];
+}
+
+export interface SimpleRequirementsConfirm {
+  objective_requirements: ObjectiveRequirement[];
+  nice_to_haves: NiceToHave[];
+  responsibilities: string[];
+  suggested_traits: string[];
+}
+
+export interface SimpleCandidateCreate {
+  email: string;
+  full_name: string;
+  phone?: string;
+}
+
+export interface SimpleTraitSelect {
+  trait_ids: string[];
+}
+
+export interface SimpleCandidateResult {
+  candidate_id: string;
+  full_name: string;
+  email: string;
+  qualification_status: SimpleQualificationStatus;
+  interview_status: SimpleInterviewStatus;
+  trait_scores: SimpleTraitScore[] | null;
+  composite_score: number | null;
+  recommendation: Recommendation | null;
+  recommendation_rationale: string | null;
+  completed_at: string | null;
+}
+
+export interface SimpleResultsResponse {
+  assessment_id: string;
+  job_title: string;
+  status: SimpleAssessmentStatus;
+  total_candidates: number;
+  interviews_completed: number;
+  results: SimpleCandidateResult[];
+}
+
+export interface SimpleInviteResponse {
+  candidate_id: string;
+  magic_link: string;
+  expires_at: string;
+}
+
+// Public Simple Interview Types (for magic link access)
+export interface SimpleInterviewInfo {
+  candidate_name: string;
+  job_title: string;
+  organization_name: string;
+  traits_to_assess: string[];
+  interview_status: SimpleInterviewStatus;
+}
+
+export interface SimpleInterviewStartResponse {
+  session_id: string;
+  next_prompt: string;
+  trait_name: string | null;
+  progress: number;
+  is_complete: boolean;
+}
+
+export interface SimpleInterviewRespondRequest {
+  response_text: string;
+}
+
+export interface SimpleInterviewRespondResponse {
+  next_prompt: string | null;
+  trait_name: string | null;
+  progress: number;
+  is_complete: boolean;
+}
+
+export interface SimpleInterviewStatusResponse {
+  interview_status: SimpleInterviewStatus;
+  progress: number;
+  is_complete: boolean;
+  trait_scores: SimpleTraitScore[] | null;
+  composite_score: number | null;
+  recommendation: Recommendation | null;
+}
+
+// API Key Types
+export interface APIKey {
+  id: string;
+  organization_id: string;
+  created_by_id: string | null;
+  name: string;
+  key_prefix: string;
+  tier: APIKeyTier;
+  is_active: boolean;
+  expires_at: string | null;
+  last_used_at: string | null;
+  total_requests: number;
+  requests_this_month: number;
+  assessments_this_month: number;
+  last_reset_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface APIKeyCreate {
+  name: string;
+  tier?: APIKeyTier;
+  expires_in_days?: number;
+}
+
+export interface APIKeyResponse extends APIKey {
+  full_key?: string; // Only returned on creation
+}

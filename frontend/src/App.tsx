@@ -19,6 +19,12 @@ import InvitationLanding from '@/pages/InvitationLanding';
 import Rubrics from '@/pages/Rubrics';
 import Settings from '@/pages/Settings';
 import Jobs from '@/pages/Jobs';
+// Simple Mode pages
+import SimpleDashboard from '@/pages/SimpleDashboard';
+import SimpleNewAssessment from '@/pages/SimpleNewAssessment';
+import SimpleAssessment from '@/pages/SimpleAssessment';
+import SimpleResults from '@/pages/SimpleResults';
+import SimplePublicInterview from '@/pages/SimplePublicInterview';
 
 function App() {
   return (
@@ -28,6 +34,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/invite/:token" element={<InvitationLanding />} />
+        <Route path="/interview/:token" element={<SimplePublicInterview />} />
 
         {/* Protected routes */}
         <Route
@@ -38,6 +45,11 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          {/* Simple Mode routes */}
+          <Route path="/simple" element={<SimpleDashboard />} />
+          <Route path="/simple/new" element={<SimpleNewAssessment />} />
+          <Route path="/simple/assessments/:id" element={<SimpleAssessment />} />
+          <Route path="/simple/assessments/:id/results" element={<SimpleResults />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/candidates" element={<Candidates />} />
           <Route path="/candidates/:candidateId/start-interview" element={<StartInterview />} />

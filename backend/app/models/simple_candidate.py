@@ -126,7 +126,8 @@ class SimpleCandidate(Base, UUIDMixin, TimestampMixin):
         back_populates="candidates",
     )
     interview_session: Mapped[Optional["InterviewSession"]] = relationship(
-        "InterviewSession"
+        "InterviewSession",
+        foreign_keys=[interview_session_id],
     )
 
     def __repr__(self) -> str:
