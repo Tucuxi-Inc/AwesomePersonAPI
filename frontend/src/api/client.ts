@@ -226,6 +226,7 @@ export const api = {
   // Interviews
   startInterview: (data: {
     candidate_id: string;
+    job_id?: string; // Phase 7: Link interview to a job for resume-informed probes
     rubric_id?: string;
     trait_ids?: string[];
     config?: {

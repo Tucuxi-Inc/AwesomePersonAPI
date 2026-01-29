@@ -26,6 +26,7 @@ from app.models import (
     Trait,
     ScoringRubric,
     Resume,
+    Job,
 )
 from app.services import (
     get_interview_engine,
@@ -33,6 +34,7 @@ from app.services import (
     InterviewState,
     TraitProgress,
 )
+from app.services.interview_engine import JobContext
 
 router = APIRouter()
 
@@ -52,6 +54,7 @@ class InterviewConfigRequest(BaseModel):
 class StartInterviewRequest(BaseModel):
     """Request to start a new interview."""
     candidate_id: str
+    job_id: Optional[str] = None  # Phase 7: Link interview to a job for resume-informed probes
     rubric_id: Optional[str] = None
     trait_ids: Optional[List[str]] = None  # If not provided, use all traits
     config: Optional[InterviewConfigRequest] = None
@@ -68,6 +71,9 @@ class InterviewPromptResponse(BaseModel):
     overall_progress: float
     can_end_interview: bool
     interview_complete: bool = False
+    # Phase 7: Job context for UI display
+    job_title: Optional[str] = None
+    job_id: Optional[str] = None
 
 
 class CandidateResponseRequest(BaseModel):
@@ -163,6 +169,15 @@ def _state_to_dict(state: InterviewState) -> dict:
             {"type": e.element_type, "description": e.description}
             for e in state.resume_elements
         ],
+        # Phase 7: Job context and parsed resume
+        "job_context": {
+            "job_id": state.job_context.job_id,
+            "title": state.job_context.title,
+            "responsibilities": state.job_context.responsibilities,
+            "objective_requirements": state.job_context.objective_requirements,
+            "nice_to_haves": state.job_context.nice_to_haves,
+        } if state.job_context else None,
+        "parsed_resume_data": state.parsed_resume_data,
     }
 
 
@@ -180,6 +195,18 @@ def _dict_to_state(data: dict) -> InterviewState:
         enable_conflict_probing=data["config"]["enable_conflict_probing"],
     )
 
+    # Phase 7: Restore job context
+    job_context = None
+    if data.get("job_context"):
+        jc = data["job_context"]
+        job_context = JobContext(
+            job_id=jc["job_id"],
+            title=jc["title"],
+            responsibilities=jc.get("responsibilities", []),
+            objective_requirements=jc.get("objective_requirements", []),
+            nice_to_haves=jc.get("nice_to_haves", []),
+        )
+
     state = InterviewState(
         session_id=data["session_id"],
         candidate_id=data["candidate_id"],
@@ -193,6 +220,8 @@ def _dict_to_state(data: dict) -> InterviewState:
             ResumeElement(element_type=e["type"], description=e["description"])
             for e in data.get("resume_elements", [])
         ],
+        job_context=job_context,
+        parsed_resume_data=data.get("parsed_resume_data"),
     )
 
     # Restore trait progress
@@ -256,14 +285,43 @@ async def start_interview(
             detail="No traits found to assess"
         )
 
-    # Get resume text if available
+    # Get resume text and parsed data if available
     resume_text = None
+    parsed_resume_data = None
     resume_result = await db.execute(
         select(Resume).where(Resume.candidate_id == candidate.id).order_by(Resume.created_at.desc())
     )
     resume = resume_result.scalar_one_or_none()
     if resume:
-        resume_text = resume.content
+        resume_text = resume.raw_text
+        # Phase 7: Use parsed resume data when available
+        if resume.parsed_data:
+            parsed_resume_data = resume.parsed_data
+
+    # Phase 7: Load job context if job_id provided
+    job_context = None
+    job_context_dict = None
+    if request.job_id:
+        job_result = await db.execute(
+            select(Job).where(Job.id == uuid.UUID(request.job_id))
+        )
+        job = job_result.scalar_one_or_none()
+        if job:
+            job_context = JobContext(
+                job_id=str(job.id),
+                title=job.title,
+                responsibilities=job.responsibilities or [],
+                objective_requirements=job.objective_requirements or [],
+                nice_to_haves=job.nice_to_haves or [],
+                description=job.description,
+            )
+            job_context_dict = {
+                "job_id": str(job.id),
+                "title": job.title,
+                "responsibilities": job.responsibilities or [],
+                "objective_requirements": job.objective_requirements or [],
+                "nice_to_haves": job.nice_to_haves or [],
+            }
 
     # Get behavioral anchors from rubric
     behavioral_anchors = {}
@@ -303,11 +361,13 @@ async def start_interview(
         candidate_id=candidate.id,
         interviewer_id=current_user.id,
         rubric_id=uuid.UUID(request.rubric_id) if request.rubric_id else None,
+        job_id=uuid.UUID(request.job_id) if request.job_id else None,  # Phase 7
         session_type="BEHAVIORAL",
         status="IN_PROGRESS",
         started_at=datetime.now(timezone.utc),
         target_traits=[str(t.id) for t in traits],
         interview_config=config.__dict__,
+        job_context=job_context_dict,  # Phase 7: Store job context
         traits_total=len(traits),
     )
     db.add(db_session)
@@ -322,6 +382,8 @@ async def start_interview(
         config=config,
         resume_text=resume_text,
         behavioral_anchors={str(t.id): behavioral_anchors.get(str(t.id), {}) for t in traits},
+        job_context=job_context,  # Phase 7
+        parsed_resume_data=parsed_resume_data,  # Phase 7
     )
 
     # Store state
@@ -340,6 +402,8 @@ async def start_interview(
         overall_progress=response.overall_progress,
         can_end_interview=response.can_end_interview,
         interview_complete=response.interview_complete,
+        job_title=job_context.title if job_context else None,
+        job_id=request.job_id,
     )
 
 

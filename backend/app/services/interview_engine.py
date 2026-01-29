@@ -36,6 +36,17 @@ from app.services.interview_compliance import (
 )
 
 
+@dataclass
+class JobContext:
+    """Job context for resume-informed interviews."""
+    job_id: str
+    title: str
+    responsibilities: List[str] = field(default_factory=list)
+    objective_requirements: List[Dict[str, Any]] = field(default_factory=list)
+    nice_to_haves: List[Dict[str, Any]] = field(default_factory=list)
+    description: Optional[str] = None
+
+
 class InterviewPhase(str, Enum):
     """Current phase of the interview."""
     NOT_STARTED = "NOT_STARTED"
@@ -103,6 +114,8 @@ class InterviewState:
     start_time: Optional[datetime] = None
     config: InterviewConfig = field(default_factory=InterviewConfig)
     resume_elements: List[ResumeElement] = field(default_factory=list)
+    job_context: Optional[JobContext] = None
+    parsed_resume_data: Optional[Dict[str, Any]] = None  # Extracted resume data (experience, skills, etc.)
 
 
 @dataclass
@@ -159,6 +172,8 @@ Do you have any questions for me about the role or the team?"""
         config: Optional[InterviewConfig] = None,
         resume_text: Optional[str] = None,
         behavioral_anchors: Optional[Dict[str, Dict[str, Any]]] = None,
+        job_context: Optional[JobContext] = None,
+        parsed_resume_data: Optional[Dict[str, Any]] = None,
     ) -> tuple[InterviewState, InterviewResponse]:
         """
         Start a new interview session.
@@ -170,6 +185,8 @@ Do you have any questions for me about the role or the team?"""
             config: Interview configuration
             resume_text: Optional resume text for customization
             behavioral_anchors: Optional behavioral anchors per trait
+            job_context: Optional job context for resume-informed interviews
+            parsed_resume_data: Optional parsed resume data (experience, skills, etc.)
 
         Returns:
             Tuple of (InterviewState, InterviewResponse)
@@ -183,6 +200,8 @@ Do you have any questions for me about the role or the team?"""
             candidate_id=candidate_id,
             config=config,
             start_time=datetime.now(timezone.utc),
+            job_context=job_context,
+            parsed_resume_data=parsed_resume_data,
         )
 
         # Initialize trait progress
@@ -406,15 +425,25 @@ Do you have any questions for me about the role or the team?"""
         progress = state.trait_progress[current_trait_id]
         trait_meta = traits_metadata.get(current_trait_id, {})
 
-        # Build probe context
+        # Build probe context with job information
+        role_context = trait_meta.get("role_context")
+        if state.job_context:
+            # Enhance role context with job details
+            job_ctx = state.job_context
+            role_context = f"Role: {job_ctx.title}\n"
+            if job_ctx.responsibilities:
+                role_context += f"Key Responsibilities: {', '.join(job_ctx.responsibilities[:3])}\n"
+
         context = ProbeGenerationContext(
             trait_id=current_trait_id,
             trait_name=progress.trait_name,
             trait_definition=trait_meta.get("definition", ""),
-            role_context=trait_meta.get("role_context"),
+            role_context=role_context,
             resume_summary=self._get_resume_summary(state),
             behavioral_anchors=trait_meta.get("behavioral_anchors"),
             probe_type="PRIMARY",
+            job_context=self._format_job_context(state.job_context) if state.job_context else None,
+            parsed_resume=state.parsed_resume_data,
         )
 
         # Generate probe
@@ -780,6 +809,21 @@ Do you have any questions for me about the role or the team?"""
             return None
         summaries = [f"- {e.description}" for e in state.resume_elements[:5]]
         return "\n".join(summaries)
+
+    def _format_job_context(self, job_context: JobContext) -> Dict[str, Any]:
+        """Format job context for probe generation."""
+        return {
+            "job_id": job_context.job_id,
+            "title": job_context.title,
+            "responsibilities": job_context.responsibilities,
+            "requirements": [
+                req.get("requirement", "") for req in job_context.objective_requirements
+                if req.get("required", True)
+            ],
+            "nice_to_haves": [
+                item.get("description", "") for item in job_context.nice_to_haves
+            ],
+        }
 
     def _calculate_overall_progress(self, state: InterviewState) -> float:
         """Calculate overall interview progress."""

@@ -52,116 +52,28 @@
 - Requirements dialog with AI extraction and manual editing
 - Sample jobs and candidates seeded for testing
 
+### Phase 6: Resume Upload & Qualification Screening ✅
+- ResumeParser service for PDF/DOCX/TXT extraction
+- ResumeAnalyzer service for LLM-powered structured data extraction
+- QualificationScreener service for resume vs requirements comparison
+- CandidateJobScreening model with gap analysis and admin override
+- Resume model enhanced with parse_status and parse_error
+- API endpoints for resume upload, retrieval, reparse
+- API endpoints for screening, override, and candidate statistics
+- Frontend Candidates page with resume upload and display
+
+### Phase 7: Resume-Informed Interviews ✅
+- Interview start endpoint accepts job_id parameter
+- JobContext dataclass for storing job details in interview state
+- InterviewEngine loads job context and parsed resume data
+- ProbeGenerator includes job context and resume data in probe generation
+- ResumeInformedProbeCustomizer enhanced with job context support
+- InterviewSession model includes job_id and job_context fields
+- Frontend types and API client updated for job-linked interviews
+
 ---
 
 ## Remaining Phases
-
-### Phase 6: Resume Upload & Qualification Screening
-
-**Purpose:** Screen candidate resumes against job objective requirements. Binary pass/fail with gap analysis for non-qualifiers.
-
-**Backend:**
-- `POST /api/v1/candidates/{id}/resume` - Upload resume (PDF/DOCX)
-- `GET /api/v1/candidates/{id}/resume` - Get resume with parsed content
-- `POST /api/v1/jobs/{job_id}/screen-candidate/{candidate_id}` - Screen candidate against job requirements
-- `GET /api/v1/jobs/{job_id}/candidates` - Get candidates with screening status
-- `GET /api/v1/jobs/{job_id}/candidates/qualified` - Get qualified candidates (ready for interview)
-- `GET /api/v1/jobs/{job_id}/candidates/gaps` - Get non-qualified with gap analysis, sortable by gap count
-- `POST /api/v1/jobs/{job_id}/candidates/{candidate_id}/override` - Admin override to add to qualified pool
-
-**Services:**
-- `ResumeParser` - Extract text from PDF/DOCX (using `pypdf`, `python-docx`)
-- `ResumeAnalyzer` - LLM-powered extraction:
-  - Education history
-  - Work experience with durations and titles
-  - Skills and certifications
-  - Achievements
-- `QualificationScreener` - Compare resume against job requirements:
-  - For each objective requirement, determine: MET / NOT_MET / UNCLEAR
-  - Generate qualification_status: QUALIFIED / NOT_QUALIFIED / NEEDS_REVIEW
-  - For NOT_QUALIFIED: list specific gaps with explanations
-  - Calculate gap_count for sorting
-
-**Database:**
-```python
-class Resume(Base):  # Already exists, enhance with:
-    parsed_text: str
-    extracted_data: JSONB  # {education: [], experience: [], skills: [], certifications: []}
-    parse_status: str  # PENDING, PARSED, FAILED
-
-class CandidateJobScreening(Base):
-    id: UUID
-    candidate_id: UUID
-    job_id: UUID
-    resume_id: UUID
-
-    qualification_status: str  # QUALIFIED, NOT_QUALIFIED, NEEDS_REVIEW
-    requirement_results: JSONB  # [{"requirement_id": "...", "status": "MET/NOT_MET/UNCLEAR", "evidence": "...", "explanation": "..."}]
-    gaps: JSONB  # [{"requirement": "...", "explanation": "Why not met"}]
-    gap_count: int  # For sorting
-
-    admin_override: bool  # True if admin manually qualified
-    override_by: UUID  # User who overrode
-    override_reason: str
-    override_at: datetime
-
-    screened_at: datetime
-```
-
-**Frontend:**
-- Resume upload component (drag-drop, progress indicator)
-- Resume viewer (parsed content, extracted sections)
-- Job candidates view with tabs:
-  - **Qualified** - Ready for interview, with "Start Interview" action
-  - **Not Qualified** - Sortable by gap count, expandable gap details
-  - **Needs Review** - Unclear matches for manual review
-- Gap analysis display:
-  - List of unmet requirements
-  - Resume evidence (or lack thereof)
-  - "Override & Qualify" button for admins with reason field
-- Screening status badges on candidate cards
-
----
-
-### Phase 7: Resume-Informed Interviews
-
-**Purpose:** Use job description and candidate resume to customize interview probes.
-
-**Backend:**
-- Update `POST /api/v1/interviews/start` to accept `job_id` parameter
-- Interview engine loads job context (responsibilities, requirements) and resume data
-- Probes customized with resume-specific anchors
-
-**Services:**
-- Update `ResumeInformedProbeCustomizer` (already exists) to:
-  - Pull from parsed resume data
-  - Reference specific experiences from resume
-  - Ask about gaps or transitions in work history
-  - Customize STAR probes with candidate's actual background
-- Update `InterviewEngine` to:
-  - Include job context in system prompt
-  - Weight evidence against role responsibilities
-  - Note when candidate examples align with JD requirements
-
-**Example Customization:**
-```
-Generic probe: "Tell me about a time you had to learn something new quickly."
-
-Resume-informed probe: "I see you transitioned from marketing to product management
-at Acme Corp in 2023. Tell me about how you approached learning the technical
-aspects of product development during that transition."
-```
-
-**Frontend:**
-- Start Interview page shows job context if job_id provided
-- Interview UI shows "Role: [Job Title]" in header
-- Candidate info panel shows resume highlights
-
-**Database:**
-- Add `job_id` to `InterviewSession` model
-- Link interview results back to job for reporting
-
----
 
 ### Phase 8: Analytics & Reporting
 

@@ -51,6 +51,8 @@ class ResumeInformedProbeCustomizer:
     - Maps resume elements to trait assessment opportunities
     - Transforms generic probes into resume-anchored questions
     - Ensures questions cannot be answered with rehearsed responses
+    - Uses parsed resume data (experience, skills, etc.) when available
+    - Incorporates job context for role-specific customization
     """
 
     # Mapping of resume elements to relevant traits
@@ -71,6 +73,170 @@ class ResumeInformedProbeCustomizer:
 
     def __init__(self):
         self.llm_client = get_llm_client()
+
+    def extract_elements_from_parsed_resume(
+        self,
+        parsed_data: Dict[str, Any],
+    ) -> List[ResumeElement]:
+        """
+        Extract probe-relevant elements from already-parsed resume data.
+
+        This is faster than LLM extraction when we already have structured data.
+
+        Args:
+            parsed_data: Structured resume data with experience, education, skills, etc.
+
+        Returns:
+            List of ResumeElements for probe customization
+        """
+        elements = []
+
+        # Extract from experience
+        experience = parsed_data.get("experience", [])
+        for i, exp in enumerate(experience):
+            # Job transition detection (if not first job)
+            if i > 0:
+                prev_exp = experience[i - 1] if i > 0 else None
+                if prev_exp and prev_exp.get("company") != exp.get("company"):
+                    elements.append(ResumeElement(
+                        element_type="job_transition",
+                        description=f"Moved from {prev_exp.get('title', 'role')} at {prev_exp.get('company', 'company')} to {exp.get('title', 'role')} at {exp.get('company', 'company')}",
+                        company=exp.get("company"),
+                        timeframe=exp.get("start_date"),
+                        relevance_to_traits=self.ELEMENT_TRAIT_MAP.get("job_transition", []),
+                    ))
+
+            # Leadership role detection
+            title = (exp.get("title") or "").lower()
+            if any(word in title for word in ["manager", "lead", "director", "head", "vp", "chief"]):
+                elements.append(ResumeElement(
+                    element_type="leadership_role",
+                    description=f"{exp.get('title')} at {exp.get('company')}",
+                    company=exp.get("company"),
+                    timeframe=exp.get("start_date"),
+                    relevance_to_traits=self.ELEMENT_TRAIT_MAP.get("leadership_role", []),
+                ))
+
+            # Extract from responsibilities/achievements
+            for resp in exp.get("responsibilities", [])[:2]:
+                if any(word in resp.lower() for word in ["led", "managed", "built", "created", "improved", "increased", "reduced"]):
+                    elements.append(ResumeElement(
+                        element_type="process_improvement",
+                        description=resp,
+                        company=exp.get("company"),
+                        timeframe=exp.get("start_date"),
+                        relevance_to_traits=self.ELEMENT_TRAIT_MAP.get("process_improvement", []),
+                    ))
+
+        # Extract skill acquisitions from certifications
+        certifications = parsed_data.get("certifications", [])
+        for cert in certifications[:3]:
+            cert_name = cert.get("name") or cert if isinstance(cert, str) else str(cert)
+            elements.append(ResumeElement(
+                element_type="skill_acquisition",
+                description=f"Obtained certification: {cert_name}",
+                company=None,
+                timeframe=cert.get("date") if isinstance(cert, dict) else None,
+                relevance_to_traits=self.ELEMENT_TRAIT_MAP.get("skill_acquisition", []),
+            ))
+
+        return elements
+
+    async def customize_probe_with_job_context(
+        self,
+        generic_probe: str,
+        trait_id: str,
+        trait_name: str,
+        parsed_resume: Optional[Dict[str, Any]] = None,
+        job_context: Optional[Dict[str, Any]] = None,
+        max_anchors: int = 2,
+    ) -> ProbeCustomization:
+        """
+        Customize a probe using both parsed resume and job context.
+
+        This is the Phase 7 enhanced version that uses structured data
+        instead of raw text when available.
+
+        Args:
+            generic_probe: The generic interview probe
+            trait_id: The trait being assessed
+            trait_name: Human-readable trait name
+            parsed_resume: Structured resume data
+            job_context: Job context (title, responsibilities, requirements)
+            max_anchors: Maximum number of resume anchors to use
+
+        Returns:
+            ProbeCustomization with the customized probe
+        """
+        # Build context for customization
+        resume_context = ""
+        job_info = ""
+
+        if parsed_resume:
+            exp = parsed_resume.get("experience", [])[:2]
+            if exp:
+                resume_context = "Candidate's recent experience:\n"
+                for e in exp:
+                    resume_context += f"- {e.get('title', 'Role')} at {e.get('company', 'Company')}"
+                    if e.get("responsibilities"):
+                        resume_context += f" (Key work: {'; '.join(e['responsibilities'][:2])})"
+                    resume_context += "\n"
+
+        if job_context:
+            job_info = f"Target Role: {job_context.get('title', 'N/A')}\n"
+            if job_context.get("responsibilities"):
+                job_info += f"Key Responsibilities: {', '.join(job_context['responsibilities'][:3])}\n"
+
+        if not resume_context and not job_info:
+            return ProbeCustomization(
+                original_probe=generic_probe,
+                customized_probe=generic_probe,
+                resume_anchors=[],
+                customization_rationale="No resume or job context available",
+                trait_id=trait_id,
+            )
+
+        prompt = f"""Transform this generic interview probe into a ROLE-SPECIFIC, RESUME-ANCHORED question.
+
+GENERIC PROBE: "{generic_probe}"
+
+TRAIT: {trait_name}
+
+{job_info}
+{resume_context}
+
+Create a customized probe that:
+1. References SPECIFIC details from the resume (company names, role transitions, projects)
+2. Connects to the JOB they're applying for when relevant
+3. Makes the question impossible to answer with a rehearsed response
+4. Maintains focus on the trait ({trait_name})
+5. Feels natural and conversational
+
+Example transformation:
+- Generic: "Tell me about a time you adapted to change"
+- Customized: "You moved from engineering to product management at Acme. Given that this PM role requires both technical depth and stakeholder management, tell me about a specific moment during that transition when your usual approach wasn't working and you had to adapt."
+
+Return JSON:
+{{
+    "customized_probe": "your customized question",
+    "resume_anchors": ["specific resume elements referenced"],
+    "job_alignment": "how this connects to the target role",
+    "customization_rationale": "why this approach"
+}}"""
+
+        result = await self.llm_client.complete_structured(
+            prompt=prompt,
+            system_prompt="You customize interview questions using resume and job context. Make questions specific, role-relevant, and impossible to answer with generic rehearsed answers.",
+            max_tokens=512,
+        )
+
+        return ProbeCustomization(
+            original_probe=generic_probe,
+            customized_probe=result.get("customized_probe", generic_probe),
+            resume_anchors=result.get("resume_anchors", []),
+            customization_rationale=result.get("customization_rationale", ""),
+            trait_id=trait_id,
+        )
 
     async def extract_resume_elements(
         self,

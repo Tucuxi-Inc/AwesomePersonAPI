@@ -49,6 +49,11 @@ class InterviewSession(Base, UUIDMixin, TimestampMixin):
         ForeignKey("scoring_rubrics.id", ondelete="SET NULL"),
         nullable=True,
     )
+    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Session metadata
     session_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
@@ -107,6 +112,16 @@ class InterviewSession(Base, UUIDMixin, TimestampMixin):
 
     # Interview configuration
     interview_config: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    # Job context for resume-informed interviews
+    job_context: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    # Format: {
+    #   "job_id": "uuid",
+    #   "title": "Product Manager",
+    #   "responsibilities": ["...", "..."],
+    #   "objective_requirements": [...],
+    #   "nice_to_haves": [...],
+    # }
     # Format: {
     #   "max_duration_minutes": 60,
     #   "enable_resume_customization": true,

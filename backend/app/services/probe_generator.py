@@ -48,6 +48,9 @@ class ProbeGenerationContext:
     last_evidence_type: Optional[EvidenceType] = None
     behavioral_anchors: Optional[Dict[str, Any]] = None
     probe_type: str = "PRIMARY"
+    # Phase 7: Resume-informed interview context
+    job_context: Optional[Dict[str, Any]] = None  # Job title, responsibilities, requirements
+    parsed_resume: Optional[Dict[str, Any]] = None  # Parsed resume data (experience, skills, etc.)
 
 
 class PatternAwareProbeGenerator:
@@ -520,7 +523,37 @@ Return JSON:
         """Format candidate context for the prompt."""
         sections = []
 
-        if context.resume_summary:
+        # Job context (Phase 7: Resume-informed interviews)
+        if context.job_context:
+            job = context.job_context
+            job_section = f"JOB CONTEXT:\n  Title: {job.get('title', 'N/A')}"
+            if job.get("responsibilities"):
+                job_section += f"\n  Key Responsibilities: {', '.join(job['responsibilities'][:3])}"
+            if job.get("requirements"):
+                job_section += f"\n  Key Requirements: {', '.join(job['requirements'][:3])}"
+            sections.append(job_section)
+
+        # Parsed resume data (Phase 7: Resume-informed interviews)
+        if context.parsed_resume:
+            resume = context.parsed_resume
+            resume_section = "CANDIDATE BACKGROUND:"
+            if resume.get("experience"):
+                recent_exp = resume["experience"][:2]
+                exp_lines = []
+                for exp in recent_exp:
+                    exp_line = f"{exp.get('title', 'Role')} at {exp.get('company', 'Company')}"
+                    if exp.get("duration"):
+                        exp_line += f" ({exp['duration']})"
+                    exp_lines.append(exp_line)
+                resume_section += f"\n  Recent Experience: {'; '.join(exp_lines)}"
+            if resume.get("skills"):
+                resume_section += f"\n  Key Skills: {', '.join(resume['skills'][:5])}"
+            if resume.get("education"):
+                edu = resume["education"][0] if resume["education"] else {}
+                if edu:
+                    resume_section += f"\n  Education: {edu.get('degree', '')} {edu.get('field', '')} from {edu.get('institution', '')}"
+            sections.append(resume_section)
+        elif context.resume_summary:
             sections.append(f"CANDIDATE RESUME SUMMARY:\n{context.resume_summary}")
 
         if context.role_context:

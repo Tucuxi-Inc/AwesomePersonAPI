@@ -218,6 +218,7 @@ export interface InterviewConfigRequest {
 
 export interface StartInterviewRequest {
   candidate_id: string;
+  job_id?: string; // Phase 7: Link interview to a job for resume-informed probes
   rubric_id?: string;
   trait_ids?: string[];
   config?: InterviewConfigRequest;
@@ -247,6 +248,9 @@ export interface InterviewPromptResponse {
   overall_progress: number;
   can_end_interview: boolean;
   interview_complete: boolean;
+  // Phase 7: Job context for UI display
+  job_title: string | null;
+  job_id: string | null;
 }
 
 export interface CandidateResponseRequest {
