@@ -44,55 +44,17 @@
 - Role Templates with create/edit/delete
 - Top Performers with edit/delete
 
+### Phase 5: Job Descriptions & Objective Requirements ✅
+- Job model with JSONB fields for requirements
+- Full CRUD API endpoints for jobs
+- LLM-powered requirement extraction from job descriptions
+- Jobs frontend page with status filters, search, create/edit dialogs
+- Requirements dialog with AI extraction and manual editing
+- Sample jobs and candidates seeded for testing
+
 ---
 
 ## Remaining Phases
-
-### Phase 5: Job Descriptions & Objective Requirements
-
-**Purpose:** Define jobs with objective requirements that candidates must meet to qualify for interviews.
-
-**Backend:**
-- `POST /api/v1/jobs` - Create job with description and requirements
-- `GET /api/v1/jobs` - List jobs
-- `GET /api/v1/jobs/{id}` - Get job with linked role profile and candidates
-- `PUT /api/v1/jobs/{id}` - Update job
-- `DELETE /api/v1/jobs/{id}` - Archive job
-- `POST /api/v1/jobs/{id}/extract-requirements` - LLM extracts objective requirements from JD
-
-**Services:**
-- `JobDescriptionAnalyzer` - LLM-powered extraction:
-  - Objective requirements (education, certifications, years experience, specific skills)
-  - Nice-to-have qualifications (for context, not screening)
-  - Role responsibilities (for interview context)
-  - Suggested traits to assess (auto-link to role profile)
-
-**Database:**
-```python
-class Job(Base):
-    id: UUID
-    organization_id: UUID
-    title: str
-    description: str  # Full job description text
-    role_profile_id: UUID  # Links to RoleProfile for trait assessment
-
-    # Extracted objective requirements
-    objective_requirements: JSONB  # [{"type": "education", "requirement": "Bachelor's degree", "required": true}, ...]
-    nice_to_haves: JSONB
-    responsibilities: JSONB
-
-    status: str  # DRAFT, OPEN, CLOSED
-    created_at, updated_at
-```
-
-**Frontend:**
-- Jobs list page with status filters
-- Job creation/edit form with JD text area
-- "Extract Requirements" button that populates objective requirements
-- Editable requirements list (add/remove/mark as required vs preferred)
-- Link to role profile selector
-
----
 
 ### Phase 6: Resume Upload & Qualification Screening
 
@@ -297,23 +259,164 @@ aspects of product development during that transition."
 
 ---
 
+### Simple Mode: API-First Streamlined Interface
+
+**Purpose:** Provide a simplified wizard-based interface for API consumers, demo users, and low-volume assessments. Same backend services, streamlined UX with 7-step workflow.
+
+**Target Users:**
+- API consumers integrating into their own systems
+- Demo/trial users evaluating the platform
+- Low-volume users who don't need full admin features
+- Startups and small teams
+
+**7-Step Wizard Flow:**
+```
+1. Job Description → 2. Confirm Requirements → 3. Upload Resumes →
+4. Select Traits → 5. Conduct Interviews → 6. View Results → 7. Export
+```
+
+**Simplifications from Full Platform:**
+- Maximum 5 traits per assessment (research defaults only, no custom rubrics)
+- Single job description text input (no role profile linking)
+- Magic links for candidate self-service interviews
+- Automatic flow through assessment steps
+- 0-10 scoring scale (mapped from internal 1-5)
+- PDF-only export format
+
+**Backend:**
+- `POST /api/v1/simple/assessments` - Create simple assessment
+- `GET /api/v1/simple/assessments` - List assessments
+- `GET /api/v1/simple/assessments/{id}` - Get assessment details
+- `POST /api/v1/simple/assessments/{id}/requirements/confirm` - Confirm extracted requirements
+- `POST /api/v1/simple/assessments/{id}/candidates` - Add candidates (upload resumes)
+- `POST /api/v1/simple/assessments/{id}/traits` - Select traits (max 5)
+- `POST /api/v1/simple/assessments/{id}/candidates/{cid}/send-invite` - Send magic link
+- `GET /api/v1/simple/assessments/{id}/results` - Get all results
+- `GET /api/v1/simple/assessments/{id}/export/pdf` - Export PDF report
+
+**Public Candidate Endpoints (no auth, magic link token):**
+- `GET /api/v1/public/interview/{token}` - Get interview page
+- `POST /api/v1/public/interview/{token}/start` - Start interview session
+- `POST /api/v1/public/interview/{token}/respond` - Submit response
+- `GET /api/v1/public/interview/{token}/status` - Check completion status
+
+**Database:**
+```python
+class SimpleAssessment(Base):
+    id: UUID
+    organization_id: UUID  # For multi-tenant API keys
+    api_key_id: UUID
+
+    job_title: str
+    job_description: str
+    extracted_requirements: JSONB
+    requirements_confirmed: bool
+
+    selected_trait_ids: List[UUID]  # Max 5
+
+    status: str  # DRAFT, REQUIREMENTS_PENDING, TRAITS_PENDING,
+                 # CANDIDATES_PENDING, INTERVIEWING, COMPLETED
+
+    created_at, updated_at, completed_at
+
+class SimpleCandidate(Base):
+    id: UUID
+    assessment_id: UUID
+
+    email: str
+    full_name: str
+    resume_file_path: str
+    resume_parsed_data: JSONB
+
+    qualification_status: str  # QUALIFIED, NOT_QUALIFIED, PENDING
+    qualification_gaps: JSONB
+
+    magic_link_token: str  # Unique token for self-service
+    magic_link_expires_at: datetime
+
+    interview_session_id: UUID  # Links to existing InterviewSession
+    interview_status: str  # NOT_STARTED, IN_PROGRESS, COMPLETED
+
+    scores: JSONB  # Simplified 0-10 scores per trait
+    recommendation: str  # STRONG_HIRE, HIRE, HOLD, NO_HIRE
+
+    created_at, invited_at, completed_at
+
+class APIKey(Base):
+    id: UUID
+    organization_id: UUID
+    key_hash: str  # Hashed API key
+    key_prefix: str  # First 8 chars for identification
+    name: str  # User-friendly name
+
+    tier: str  # FREE, BASIC, PRO, ENTERPRISE
+    rate_limit_per_minute: int
+    rate_limit_per_day: int
+
+    is_active: bool
+    created_at, last_used_at, expires_at
+```
+
+**Rate Limiting Tiers:**
+| Tier | Assessments/mo | Candidates/assessment | API calls/min |
+|------|----------------|----------------------|---------------|
+| FREE | 5 | 10 | 10 |
+| BASIC | 50 | 50 | 60 |
+| PRO | 500 | 200 | 300 |
+| ENTERPRISE | Unlimited | Unlimited | 1000 |
+
+**Frontend Pages:**
+- `/simple` - Simple mode dashboard (assessment list)
+- `/simple/new` - New assessment wizard (multi-step)
+- `/simple/assessments/{id}` - Assessment detail with candidate list
+- `/simple/assessments/{id}/results` - Results overview
+- `/public/interview/{token}` - Candidate self-service interview (no auth)
+
+**Frontend Components:**
+```
+frontend/src/components/simple/
+├── StepIndicator.tsx         # Wizard progress
+├── JobDescriptionStep.tsx    # Step 1: Enter JD
+├── RequirementsStep.tsx      # Step 2: Confirm requirements
+├── CandidatesStep.tsx        # Step 3: Upload resumes
+├── TraitSelectionStep.tsx    # Step 4: Pick 5 traits
+├── InterviewStatusStep.tsx   # Step 5: Track interview progress
+├── ResultsStep.tsx           # Step 6: View results
+├── ExportStep.tsx            # Step 7: Download report
+
+frontend/src/components/public/
+├── CandidateInterviewPage.tsx  # Self-service interview
+├── InterviewComplete.tsx       # Thank you page
+```
+
+**Implementation Notes:**
+- Shares all backend services with full platform (InterviewEngine, ScoreCalibrator, etc.)
+- SimpleAssessment wraps Job + RoleProfile creation internally
+- Magic links use JWT tokens with expiration
+- Score mapping: internal 1-5 → display 0-10 (multiply by 2)
+- API keys stored with bcrypt hash, only show full key once on creation
+
+---
+
 ## Implementation Priority
 
 | Phase | Priority | Effort | Business Value |
 |-------|----------|--------|----------------|
-| 5: Job Descriptions | High | Low | Foundation for screening |
+| 5: Job Descriptions | High | Low | Foundation for screening | ✅ |
 | 6: Resume Screening | High | Medium | Core workflow completion |
 | 7: Resume-Informed Interviews | High | Low | Interview quality |
+| Simple Mode | High | Medium | API monetization, user acquisition |
 | 8: Analytics & Reporting | Medium | Medium | Decision support, compliance |
 | 9: Bulk & Onboarding | Medium | Low | User adoption, efficiency |
 | 10: Polish | Low | Medium | UX improvement |
 
-**Recommended Order**: 5 → 6 → 7 → 8 → 9 → 10
+**Recommended Order**: 5 → 6 → 7 → Simple Mode → 8 → 9 → 10
 
 This order:
 1. **Phase 5-7** complete the core workflow: Job → Screen Resumes → Qualified Pool → Interview
-2. **Phase 8** adds decision support and compliance reporting
-3. **Phase 9-10** improve operational efficiency and polish
+2. **Simple Mode** provides streamlined API-first access for external consumers
+3. **Phase 8** adds decision support and compliance reporting
+4. **Phase 9-10** improve operational efficiency and polish
 
 ---
 

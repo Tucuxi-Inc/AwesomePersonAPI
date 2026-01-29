@@ -72,3 +72,7 @@ tmp/
 temp/
 *.tmp
 *.temp
+
+# Uploaded files
+backend/uploads/
+uploads/

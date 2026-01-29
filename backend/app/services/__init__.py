@@ -62,6 +62,19 @@ from app.services.score_calibrator import (
     get_score_calibrator,
 )
 from app.services.job_analyzer import JobDescriptionAnalyzer
+from app.services.resume_parser import (
+    ResumeParser,
+    ResumeParserError,
+    get_resume_parser,
+)
+from app.services.resume_analyzer import (
+    ResumeAnalyzer,
+    get_resume_analyzer,
+)
+from app.services.qualification_screener import (
+    QualificationScreener,
+    get_qualification_screener,
+)
 
 __all__ = [
     # LLM Client
@@ -113,4 +126,14 @@ __all__ = [
     "get_score_calibrator",
     # Job Analyzer
     "JobDescriptionAnalyzer",
+    # Resume Parser
+    "ResumeParser",
+    "ResumeParserError",
+    "get_resume_parser",
+    # Resume Analyzer
+    "ResumeAnalyzer",
+    "get_resume_analyzer",
+    # Qualification Screener
+    "QualificationScreener",
+    "get_qualification_screener",
 ]

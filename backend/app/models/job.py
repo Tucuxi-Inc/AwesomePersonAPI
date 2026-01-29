@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.organization import Organization
     from app.models.role_profile import RoleProfile
     from app.models.user import User
+    from app.models.candidate_job_screening import CandidateJobScreening
 
 
 class JobStatus(str, enum.Enum):
@@ -89,6 +90,11 @@ class Job(Base, UUIDMixin, TimestampMixin):
     organization: Mapped["Organization"] = relationship("Organization", back_populates="jobs")
     role_profile: Mapped[Optional["RoleProfile"]] = relationship("RoleProfile", back_populates="jobs")
     created_by: Mapped[Optional["User"]] = relationship("User")
+    candidate_screenings: Mapped[List["CandidateJobScreening"]] = relationship(
+        "CandidateJobScreening",
+        back_populates="job",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Job(id={self.id}, title={self.title}, status={self.status})>"

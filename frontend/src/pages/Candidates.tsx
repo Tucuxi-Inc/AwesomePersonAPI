@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { api } from '@/api/client';
-import { Candidate, CandidateStatus } from '@/types';
+import { Candidate, CandidateStatus, Resume } from '@/types';
 import {
   Plus,
   Search,
@@ -22,6 +22,13 @@ import {
   Link2,
   Copy,
   Check,
+  Upload,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  GraduationCap,
+  Award,
 } from 'lucide-react';
 import {
   Dialog,
@@ -62,6 +69,15 @@ export default function Candidates() {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Resume state
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [candidateResumes, setCandidateResumes] = useState<Record<string, Resume | null>>({});
+  const [resumeLoading, setResumeLoading] = useState<Record<string, boolean>>({});
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadCandidate, setUploadCandidate] = useState<Candidate | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch candidates
   useEffect(() => {
@@ -147,6 +163,100 @@ export default function Candidates() {
       setTimeout(() => setLinkCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+    }
+  };
+
+  // Toggle expanded row and load resume if needed
+  const toggleExpanded = useCallback(async (candidateId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(candidateId)) {
+        newSet.delete(candidateId);
+      } else {
+        newSet.add(candidateId);
+        // Load resume if not already loaded
+        if (candidateResumes[candidateId] === undefined) {
+          loadCandidateResume(candidateId);
+        }
+      }
+      return newSet;
+    });
+  }, [candidateResumes]);
+
+  // Load candidate's primary resume
+  const loadCandidateResume = async (candidateId: string) => {
+    setResumeLoading(prev => ({ ...prev, [candidateId]: true }));
+    try {
+      const response = await api.getCandidateResume(candidateId);
+      setCandidateResumes(prev => ({ ...prev, [candidateId]: response.data }));
+    } catch {
+      // No resume found - set to null
+      setCandidateResumes(prev => ({ ...prev, [candidateId]: null }));
+    } finally {
+      setResumeLoading(prev => ({ ...prev, [candidateId]: false }));
+    }
+  };
+
+  // Open upload dialog
+  const handleOpenUploadDialog = (candidate: Candidate) => {
+    setUploadCandidate(candidate);
+    setUploadDialogOpen(true);
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !uploadCandidate) return;
+
+    setUploading(true);
+    try {
+      const response = await api.uploadResume(uploadCandidate.id, file);
+      // Update local state
+      setCandidateResumes(prev => ({
+        ...prev,
+        [uploadCandidate.id]: response.data,
+      }));
+      setUploadDialogOpen(false);
+      // Expand row to show the uploaded resume
+      setExpandedRows(prev => new Set(prev).add(uploadCandidate.id));
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      alert(error.response?.data?.detail || 'Failed to upload resume');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Reparse resume
+  const handleReparseResume = async (candidateId: string, resumeId: string) => {
+    setResumeLoading(prev => ({ ...prev, [candidateId]: true }));
+    try {
+      const response = await api.reparseResume(candidateId, resumeId);
+      setCandidateResumes(prev => ({ ...prev, [candidateId]: response.data }));
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      alert(error.response?.data?.detail || 'Failed to reparse resume');
+    } finally {
+      setResumeLoading(prev => ({ ...prev, [candidateId]: false }));
+    }
+  };
+
+  // Get parse status badge
+  const getParseStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PARSED':
+        return 'bg-green-100 text-green-800';
+      case 'PARSING':
+        return 'bg-blue-100 text-blue-800';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'FAILED':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -294,6 +404,14 @@ export default function Candidates() {
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenUploadDialog(candidate)}
+                    >
+                      <Upload className="mr-1.5 h-4 w-4" />
+                      Resume
+                    </Button>
+                    <Button
                       variant="default"
                       size="sm"
                       onClick={() => handleStartInterview(candidate.id)}
@@ -319,11 +437,162 @@ export default function Candidates() {
                         Results
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleExpanded(candidate.id)}
+                    >
+                      {expandedRows.has(candidate.id) ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
+
+                {/* Expanded Resume Section */}
+                {expandedRows.has(candidate.id) && (
+                  <div className="mt-4 pt-4 border-t">
+                    {resumeLoading[candidate.id] ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading resume...
+                      </div>
+                    ) : candidateResumes[candidate.id] ? (
+                      <div className="space-y-4">
+                        {/* Resume Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{candidateResumes[candidate.id]?.filename}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {(candidateResumes[candidate.id]?.file_size_bytes ?? 0 / 1024).toFixed(1)} KB
+                                {' '}• Version {candidateResumes[candidate.id]?.version}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getParseStatusBadge(candidateResumes[candidate.id]?.parse_status || '')}`}>
+                              {candidateResumes[candidate.id]?.parse_status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleReparseResume(candidate.id, candidateResumes[candidate.id]!.id)}
+                              disabled={resumeLoading[candidate.id]}
+                            >
+                              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                              Reparse
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenUploadDialog(candidate)}
+                            >
+                              <Upload className="mr-1.5 h-3.5 w-3.5" />
+                              Upload New
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Parsed Data Preview */}
+                        {candidateResumes[candidate.id]?.parse_status === 'PARSED' &&
+                         candidateResumes[candidate.id]?.parsed_data && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Experience */}
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-sm">Experience</span>
+                              </div>
+                              <p className="text-2xl font-bold">
+                                {candidateResumes[candidate.id]?.parsed_data?.total_years_experience?.toFixed(1) || '?'} years
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {candidateResumes[candidate.id]?.parsed_data?.experience?.length || 0} positions
+                              </p>
+                            </div>
+
+                            {/* Education */}
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-sm">Education</span>
+                              </div>
+                              {candidateResumes[candidate.id]?.parsed_data?.education?.length ? (
+                                <>
+                                  <p className="text-sm font-medium">
+                                    {candidateResumes[candidate.id]?.parsed_data?.education[0]?.degree || 'Degree'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {candidateResumes[candidate.id]?.parsed_data?.education[0]?.institution}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">No education data</p>
+                              )}
+                            </div>
+
+                            {/* Skills */}
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Award className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-sm">Skills</span>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {candidateResumes[candidate.id]?.parsed_data?.skills?.slice(0, 5).map((skill, idx) => (
+                                  <span key={idx} className="px-1.5 py-0.5 bg-background rounded text-xs">
+                                    {skill}
+                                  </span>
+                                ))}
+                                {(candidateResumes[candidate.id]?.parsed_data?.skills?.length || 0) > 5 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    +{(candidateResumes[candidate.id]?.parsed_data?.skills?.length || 0) - 5} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Parse Error */}
+                        {candidateResumes[candidate.id]?.parse_status === 'FAILED' && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm text-red-800">
+                              <strong>Parse Error:</strong> {candidateResumes[candidate.id]?.parse_error}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Parsing in Progress */}
+                        {(candidateResumes[candidate.id]?.parse_status === 'PENDING' ||
+                          candidateResumes[candidate.id]?.parse_status === 'PARSING') && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                            <p className="text-sm text-blue-800">
+                              Resume is being processed. Refresh to check status.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground mb-2">No resume uploaded</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenUploadDialog(candidate)}
+                        >
+                          <Upload className="mr-1.5 h-4 w-4" />
+                          Upload Resume
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -427,6 +696,56 @@ export default function Candidates() {
                 Done
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Resume Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Resume</DialogTitle>
+            <DialogDescription>
+              Upload a resume for {uploadCandidate?.full_name}. Supported formats: PDF, DOCX, DOC, TXT.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div
+              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Uploading resume...</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Click to select a file or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    PDF, DOCX, DOC, TXT up to 10MB
+                  </p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.doc,.txt"
+                onChange={handleFileSelect}
+                className="hidden"
+                disabled={uploading}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)} disabled={uploading}>
+              Cancel
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

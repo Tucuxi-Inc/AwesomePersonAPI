@@ -710,3 +710,161 @@ export interface SelfServiceSessionResponse {
   overall_progress: number;
   is_complete: boolean;
 }
+
+// --- Job Types ---
+
+export type JobStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'ON_HOLD';
+
+export interface ObjectiveRequirement {
+  id: string;
+  type: 'education' | 'experience' | 'certification' | 'skill' | 'other';
+  requirement: string;
+  required: boolean;
+}
+
+export interface NiceToHave {
+  description: string;
+}
+
+export interface Job {
+  id: string;
+  organization_id: string;
+  role_profile_id: string | null;
+  title: string;
+  description: string;
+  department: string | null;
+  location: string | null;
+  employment_type: string | null;
+  objective_requirements: ObjectiveRequirement[];
+  nice_to_haves: NiceToHave[];
+  responsibilities: string[];
+  suggested_traits: string[];
+  status: JobStatus;
+  created_by_id: string | null;
+  requirements_extracted_at: string | null;
+  extraction_model: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobWithRoleProfile extends Job {
+  role_profile_name: string | null;
+  role_profile_category: string | null;
+}
+
+// --- Resume Types ---
+
+export type ResumeParseStatus = 'PENDING' | 'PARSING' | 'PARSED' | 'FAILED';
+
+export interface ParsedExperience {
+  company: string;
+  title: string;
+  start_date: string | null;
+  end_date: string | null;
+  duration_months: number | null;
+  description: string | null;
+  achievements: string[];
+}
+
+export interface ParsedEducation {
+  institution: string;
+  degree: string | null;
+  field_of_study: string | null;
+  graduation_year: number | null;
+  gpa: string | null;
+}
+
+export interface ParsedCertification {
+  name: string;
+  issuer: string | null;
+  issue_date: string | null;
+  expiration_date: string | null;
+}
+
+export interface ParsedResumeData {
+  contact: Record<string, string> | null;
+  summary: string | null;
+  experience: ParsedExperience[];
+  education: ParsedEducation[];
+  skills: string[];
+  certifications: ParsedCertification[];
+  languages: string[];
+  total_years_experience: number | null;
+}
+
+export interface Resume {
+  id: string;
+  candidate_id: string;
+  filename: string;
+  file_type: string;
+  file_size_bytes: number;
+  parse_status: ResumeParseStatus;
+  parse_error: string | null;
+  raw_text: string | null;
+  parsed_data: ParsedResumeData | null;
+  ai_analysis: Record<string, unknown> | null;
+  version: number;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- Screening Types ---
+
+export type QualificationStatus = 'PENDING' | 'QUALIFIED' | 'NOT_QUALIFIED' | 'NEEDS_REVIEW';
+export type RequirementMatchStatus = 'MET' | 'NOT_MET' | 'UNCLEAR';
+
+export interface RequirementResult {
+  requirement_id: string;
+  requirement_text: string;
+  requirement_type: string;
+  required: boolean;
+  status: RequirementMatchStatus;
+  evidence: string | null;
+  explanation: string;
+}
+
+export interface GapItem {
+  requirement_id: string;
+  requirement: string;
+  requirement_type: string;
+  explanation: string;
+}
+
+export interface CandidateJobScreening {
+  id: string;
+  candidate_id: string;
+  job_id: string;
+  resume_id: string;
+  qualification_status: QualificationStatus;
+  requirement_results: RequirementResult[];
+  gaps: GapItem[];
+  gap_count: number;
+  admin_override: boolean;
+  override_by_id: string | null;
+  override_reason: string | null;
+  override_at: string | null;
+  screened_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreeningSummary {
+  id: string;
+  candidate_id: string;
+  candidate_name: string;
+  candidate_email: string;
+  qualification_status: QualificationStatus;
+  gap_count: number;
+  admin_override: boolean;
+  screened_at: string | null;
+}
+
+export interface JobCandidatesStats {
+  total: number;
+  qualified: number;
+  not_qualified: number;
+  needs_review: number;
+  pending: number;
+  overridden: number;
+}

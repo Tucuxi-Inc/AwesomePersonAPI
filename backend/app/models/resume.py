@@ -1,5 +1,6 @@
 """Resume model."""
 
+import enum
 import uuid
 from typing import TYPE_CHECKING, Optional
 
@@ -11,6 +12,15 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.candidate import Candidate
+
+
+class ResumeParseStatus(str, enum.Enum):
+    """Resume parsing status."""
+
+    PENDING = "PENDING"
+    PARSING = "PARSING"
+    PARSED = "PARSED"
+    FAILED = "FAILED"
 
 
 class Resume(Base, UUIDMixin, TimestampMixin):
@@ -29,6 +39,13 @@ class Resume(Base, UUIDMixin, TimestampMixin):
     file_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "pdf", "docx"
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    # Parsing status
+    parse_status: Mapped[ResumeParseStatus] = mapped_column(
+        default=ResumeParseStatus.PENDING,
+        nullable=False,
+    )
+    parse_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Extracted content
     raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

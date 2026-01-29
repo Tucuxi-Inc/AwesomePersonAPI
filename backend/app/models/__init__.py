@@ -9,7 +9,7 @@ from app.models.scenario import Scenario
 from app.models.top_performer import TopPerformer
 from app.models.training_session import TrainingSession
 from app.models.candidate import Candidate
-from app.models.resume import Resume
+from app.models.resume import Resume, ResumeParseStatus
 from app.models.interview_session import InterviewSession, InterviewStatus
 from app.models.exchange import Exchange, Speaker, ExchangeType
 from app.models.probe import Probe
@@ -30,6 +30,11 @@ from app.models.compliance import (
 )
 from app.models.invitation import Invitation, InvitationType, InvitationStatus
 from app.models.job import Job, JobStatus
+from app.models.candidate_job_screening import (
+    CandidateJobScreening,
+    QualificationStatus,
+    RequirementStatus,
+)
 
 __all__ = [
     "Organization",
@@ -47,6 +52,7 @@ __all__ = [
     "TrainingSession",
     "Candidate",
     "Resume",
+    "ResumeParseStatus",
     "InterviewSession",
     "InterviewStatus",
     "Exchange",
@@ -75,4 +81,7 @@ __all__ = [
     "InvitationStatus",
     "Job",
     "JobStatus",
+    "CandidateJobScreening",
+    "QualificationStatus",
+    "RequirementStatus",
 ]

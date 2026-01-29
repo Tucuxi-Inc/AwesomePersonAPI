@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # Anthropic
     ANTHROPIC_API_KEY: str = ""
 
+    # File Storage
+    FILE_UPLOAD_DIR: str = "./uploads"
+    MAX_RESUME_SIZE_MB: float = 10.0
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

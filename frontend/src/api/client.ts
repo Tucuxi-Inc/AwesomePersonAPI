@@ -511,4 +511,52 @@ export const api = {
     responsibilities: string[];
     suggested_traits: string[];
   }) => client.post(`/jobs/${id}/save-requirements`, data),
+
+  // Resumes
+  uploadResume: (candidateId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return client.post(`/candidates/${candidateId}/resume`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  getCandidateResumes: (candidateId: string) =>
+    client.get(`/candidates/${candidateId}/resumes`),
+
+  getCandidateResume: (candidateId: string) =>
+    client.get(`/candidates/${candidateId}/resume`),
+
+  getResume: (candidateId: string, resumeId: string) =>
+    client.get(`/candidates/${candidateId}/resume/${resumeId}`),
+
+  reparseResume: (candidateId: string, resumeId: string) =>
+    client.post(`/candidates/${candidateId}/resume/${resumeId}/reparse`),
+
+  // Job Candidate Screening
+  screenCandidate: (jobId: string, candidateId: string, resumeId?: string) =>
+    client.post(`/jobs/${jobId}/screen-candidate/${candidateId}`, { resume_id: resumeId }),
+
+  getJobCandidatesStats: (jobId: string) =>
+    client.get(`/jobs/${jobId}/candidates/stats`),
+
+  getQualifiedCandidates: (jobId: string, params?: { skip?: number; limit?: number }) =>
+    client.get(`/jobs/${jobId}/candidates/qualified`, { params }),
+
+  getCandidatesWithGaps: (jobId: string, params?: { skip?: number; limit?: number; sort_by?: string }) =>
+    client.get(`/jobs/${jobId}/candidates/gaps`, { params }),
+
+  getCandidatesNeedingReview: (jobId: string, params?: { skip?: number; limit?: number }) =>
+    client.get(`/jobs/${jobId}/candidates/needs-review`, { params }),
+
+  getScreeningDetails: (jobId: string, candidateId: string) =>
+    client.get(`/jobs/${jobId}/screening/${candidateId}`),
+
+  overrideQualification: (jobId: string, candidateId: string, reason: string) =>
+    client.post(`/jobs/${jobId}/candidates/${candidateId}/override`, { reason }),
+
+  removeOverride: (jobId: string, candidateId: string) =>
+    client.delete(`/jobs/${jobId}/candidates/${candidateId}/override`),
 };
