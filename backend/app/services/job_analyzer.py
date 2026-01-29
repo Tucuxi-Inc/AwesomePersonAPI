@@ -5,7 +5,7 @@ and suggested traits from job descriptions.
 """
 
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.services.llm_client import get_llm_client
 from app.schemas.job import ExtractedRequirements
@@ -211,3 +211,15 @@ class JobDescriptionAnalyzer:
         }
 
         return [t.upper() for t in traits if t.upper() in valid_traits]
+
+
+# Singleton instance
+_job_analyzer: Optional[JobDescriptionAnalyzer] = None
+
+
+def get_job_analyzer() -> JobDescriptionAnalyzer:
+    """Get the job analyzer singleton instance."""
+    global _job_analyzer
+    if _job_analyzer is None:
+        _job_analyzer = JobDescriptionAnalyzer()
+    return _job_analyzer

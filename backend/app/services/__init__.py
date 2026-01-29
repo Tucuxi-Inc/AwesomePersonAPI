@@ -61,7 +61,7 @@ from app.services.score_calibrator import (
     Recommendation,
     get_score_calibrator,
 )
-from app.services.job_analyzer import JobDescriptionAnalyzer
+from app.services.job_analyzer import JobDescriptionAnalyzer, get_job_analyzer
 from app.services.resume_parser import (
     ResumeParser,
     ResumeParserError,
@@ -126,6 +126,7 @@ __all__ = [
     "get_score_calibrator",
     # Job Analyzer
     "JobDescriptionAnalyzer",
+    "get_job_analyzer",
     # Resume Parser
     "ResumeParser",
     "ResumeParserError",

@@ -71,6 +71,25 @@
 - InterviewSession model includes job_id and job_context fields
 - Frontend types and API client updated for job-linked interviews
 
+### Simple Mode: API-First Streamlined Interface ✅
+- Database models: SimpleAssessment, SimpleCandidate, APIKey with tier-based rate limiting
+- Pydantic schemas for all Simple Mode operations
+- Complete 7-step wizard API:
+  1. `POST /api/v1/simple/assessments` - Create assessment with LLM requirement extraction
+  2. `POST .../requirements/confirm` - Confirm/edit extracted requirements
+  3. `POST .../candidates` - Add candidates with resume upload
+  4. `POST .../traits` - Select traits (max 5)
+  5. `POST .../candidates/{id}/send-invite` - Send magic link for self-service interview
+  6. `GET .../results` - View all results
+  7. `GET .../export/pdf` - Export report (TODO)
+- Public magic link endpoints for candidate self-service interviews:
+  - `GET /api/v1/public/simple/{token}` - Interview info
+  - `POST /api/v1/public/simple/{token}/start` - Start interview
+  - `POST /api/v1/public/simple/{token}/respond` - Submit response
+  - `GET /api/v1/public/simple/{token}/status` - Check status
+- Score conversion: internal 1-5 → display 0-10 scale
+- Frontend pages TODO: Dashboard, wizard steps, candidate interview UI
+
 ---
 
 ## Remaining Phases

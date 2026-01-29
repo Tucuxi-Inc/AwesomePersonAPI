@@ -737,3 +737,383 @@ async def end_self_service_session(
         overall_progress=1.0,
         is_complete=True,
     )
+
+
+# =============================================================================
+# Simple Mode Public Interview Endpoints (Magic Links)
+# =============================================================================
+
+from app.models import (
+    SimpleAssessment,
+    SimpleCandidate,
+    SimpleInterviewStatus,
+)
+from app.schemas.simple import (
+    PublicInterviewInfoResponse,
+    PublicInterviewStartResponse,
+    PublicInterviewRespondRequest,
+    PublicInterviewRespondResponse,
+    PublicInterviewStatusResponse,
+)
+from app.services.interview_engine import JobContext
+
+# In-memory session storage for simple mode public interviews
+_simple_sessions: dict[str, dict] = {}
+
+
+async def get_simple_candidate_by_token(
+    token: str,
+    db: AsyncSession,
+) -> tuple[SimpleCandidate, SimpleAssessment]:
+    """Get simple candidate and assessment by magic link token."""
+    result = await db.execute(
+        select(SimpleCandidate)
+        .where(SimpleCandidate.magic_link_token == token)
+        .options(selectinload(SimpleCandidate.assessment))
+    )
+    candidate = result.scalar_one_or_none()
+
+    if not candidate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invalid or expired interview link"
+        )
+
+    # Check expiration
+    if candidate.magic_link_expires_at:
+        if datetime.now(timezone.utc) > candidate.magic_link_expires_at:
+            candidate.interview_status = SimpleInterviewStatus.EXPIRED
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail="Interview link has expired"
+            )
+
+    return candidate, candidate.assessment
+
+
+@router.get("/simple/{token}", response_model=PublicInterviewInfoResponse)
+async def get_simple_interview_info(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> PublicInterviewInfoResponse:
+    """Get interview information for the simple mode candidate landing page."""
+    candidate, assessment = await get_simple_candidate_by_token(token, db)
+
+    # Get organization name
+    org_result = await db.execute(
+        select(Organization).where(Organization.id == assessment.organization_id)
+    )
+    org = org_result.scalar_one()
+
+    return PublicInterviewInfoResponse(
+        job_title=assessment.job_title,
+        organization_name=org.name,
+        candidate_name=candidate.full_name,
+        estimated_duration_minutes=30,
+        traits_count=len(assessment.selected_trait_ids),
+        instructions="""
+Welcome to your interview! Here's what to expect:
+
+1. You'll be asked behavioral questions about your past experiences
+2. Please provide specific examples with details about:
+   - The situation you faced
+   - What you did
+   - What the outcome was
+3. Take your time to think before answering
+4. There are no right or wrong answers - we want to hear about your real experiences
+5. The interview typically takes 20-30 minutes
+
+When you're ready, click "Start Interview" to begin.
+        """.strip(),
+    )
+
+
+@router.post("/simple/{token}/start", response_model=PublicInterviewStartResponse)
+async def start_simple_interview(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> PublicInterviewStartResponse:
+    """Start the simple mode interview session."""
+    candidate, assessment = await get_simple_candidate_by_token(token, db)
+
+    # Check if already completed
+    if candidate.interview_status == SimpleInterviewStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Interview has already been completed"
+        )
+
+    # Get traits
+    trait_result = await db.execute(
+        select(Trait).where(
+            Trait.id.in_([uuid.UUID(tid) for tid in assessment.selected_trait_ids])
+        )
+    )
+    traits = trait_result.scalars().all()
+
+    if not traits:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No traits configured for this assessment"
+        )
+
+    # Create interview session
+    session_id = str(uuid.uuid4())
+
+    # Create job context from assessment
+    job_context = JobContext(
+        job_id=str(assessment.id),
+        title=assessment.job_title,
+        responsibilities=[],
+        objective_requirements=assessment.extracted_requirements,
+        nice_to_haves=[],
+        description=assessment.job_description,
+    )
+
+    # Prepare traits metadata
+    traits_to_assess = [
+        {
+            "id": str(t.id),
+            "name": t.name,
+            "definition": t.definition,
+        }
+        for t in traits
+    ]
+
+    # Build config
+    config = InterviewConfig(
+        max_duration_minutes=45,
+        max_follow_ups_per_trait=2,
+        enable_resume_customization=bool(candidate.resume_parsed_data),
+        require_reflection=True,
+    )
+
+    # Start interview engine
+    engine = get_interview_engine()
+    state, response = await engine.start_interview(
+        session_id=session_id,
+        candidate_id=str(candidate.id),
+        traits_to_assess=traits_to_assess,
+        config=config,
+        resume_text=candidate.resume_raw_text,
+        job_context=job_context,
+        parsed_resume_data=candidate.resume_parsed_data,
+    )
+
+    # Create database session record
+    db_session = InterviewSession(
+        id=uuid.UUID(session_id),
+        candidate_id=None,  # Not linked to Candidate model, using SimpleCandidate
+        session_type="SIMPLE_MODE",
+        status="IN_PROGRESS",
+        started_at=datetime.now(timezone.utc),
+        target_traits=[str(t.id) for t in traits],
+        interview_config=config.__dict__,
+        job_context={
+            "job_id": str(assessment.id),
+            "title": assessment.job_title,
+        },
+        traits_total=len(traits),
+    )
+    db.add(db_session)
+
+    # Update candidate
+    candidate.interview_status = SimpleInterviewStatus.IN_PROGRESS
+    candidate.interview_session_id = uuid.UUID(session_id)
+    candidate.interview_started_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    # Store state for this session
+    _simple_sessions[session_id] = {
+        "state": _state_to_dict(state),
+        "traits_metadata": {t["id"]: t for t in traits_to_assess},
+        "candidate_id": str(candidate.id),
+        "assessment_id": str(assessment.id),
+        "token": token,
+    }
+
+    return PublicInterviewStartResponse(
+        session_id=session_id,
+        next_prompt=response.next_prompt,
+        prompt_type=response.prompt_type,
+        trait_name=response.trait_progress.trait_name if response.trait_progress else None,
+        overall_progress=response.overall_progress,
+    )
+
+
+@router.post("/simple/{token}/respond", response_model=PublicInterviewRespondResponse)
+async def submit_simple_response(
+    token: str,
+    request: PublicInterviewRespondRequest,
+    db: AsyncSession = Depends(get_db),
+) -> PublicInterviewRespondResponse:
+    """Submit a response to the current simple mode interview prompt."""
+    candidate, assessment = await get_simple_candidate_by_token(token, db)
+
+    if candidate.interview_status != SimpleInterviewStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Interview is not in progress"
+        )
+
+    session_id = str(candidate.interview_session_id)
+    session_data = _simple_sessions.get(session_id)
+
+    if not session_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Interview session not found"
+        )
+
+    # Restore state
+    state = _dict_to_state(session_data["state"])
+    traits_metadata = session_data["traits_metadata"]
+
+    # Process response
+    engine = get_interview_engine()
+    state, response = await engine.process_response(
+        state=state,
+        response_text=request.response_text,
+        traits_metadata=traits_metadata,
+    )
+
+    # Update stored state
+    _simple_sessions[session_id]["state"] = _state_to_dict(state)
+
+    # Update database session
+    db_session_result = await db.execute(
+        select(InterviewSession).where(InterviewSession.id == uuid.UUID(session_id))
+    )
+    db_session = db_session_result.scalar_one_or_none()
+    if db_session:
+        db_session.transcript = state.exchanges
+        db_session.extracted_evidence = state.evidence_items
+        db_session.traits_completed = sum(
+            1 for p in state.trait_progress.values() if p.is_complete
+        )
+
+    # Check if interview complete
+    if response.interview_complete:
+        candidate.interview_status = SimpleInterviewStatus.COMPLETED
+        candidate.interview_completed_at = datetime.now(timezone.utc)
+
+        if db_session:
+            db_session.status = "COMPLETED"
+            db_session.completed_at = datetime.now(timezone.utc)
+
+        # Update assessment stats
+        assessment.interviews_completed += 1
+
+        # Generate scores
+        await _generate_simple_candidate_scores(candidate, state, traits_metadata, db)
+
+        # Check if all interviews complete
+        if assessment.interviews_completed >= assessment.qualified_candidates:
+            from app.models import SimpleAssessmentStatus
+            assessment.status = SimpleAssessmentStatus.COMPLETED
+            assessment.completed_at = datetime.now(timezone.utc)
+
+        # Clean up session
+        del _simple_sessions[session_id]
+
+    await db.commit()
+
+    return PublicInterviewRespondResponse(
+        next_prompt=response.next_prompt,
+        prompt_type=response.prompt_type,
+        trait_name=response.trait_progress.trait_name if response.trait_progress else None,
+        overall_progress=response.overall_progress,
+        interview_complete=response.interview_complete,
+    )
+
+
+@router.get("/simple/{token}/status", response_model=PublicInterviewStatusResponse)
+async def get_simple_interview_status(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> PublicInterviewStatusResponse:
+    """Check the current simple mode interview status."""
+    candidate, _ = await get_simple_candidate_by_token(token, db)
+
+    progress = 0.0
+    if candidate.interview_session_id:
+        session_data = _simple_sessions.get(str(candidate.interview_session_id))
+        if session_data:
+            state_data = session_data["state"]
+            total_traits = len(state_data.get("trait_progress", {}))
+            completed_traits = sum(
+                1 for tp in state_data.get("trait_progress", {}).values()
+                if tp.get("is_complete")
+            )
+            progress = completed_traits / total_traits if total_traits > 0 else 0.0
+
+    return PublicInterviewStatusResponse(
+        status=candidate.interview_status.value,
+        progress=progress,
+        is_complete=candidate.interview_status == SimpleInterviewStatus.COMPLETED,
+    )
+
+
+async def _generate_simple_candidate_scores(
+    candidate: SimpleCandidate,
+    state,
+    traits_metadata: dict,
+    db: AsyncSession,
+) -> None:
+    """Generate scores for a completed simple mode interview."""
+    from app.services import get_score_calibrator, EvidenceForScoring, EvidenceType
+
+    calibrator = get_score_calibrator()
+    trait_scores = {}
+    all_calibrated_scores = []
+
+    for trait_id, progress in state.trait_progress.items():
+        trait_meta = traits_metadata.get(trait_id, {})
+
+        # Get evidence for this trait
+        trait_evidence = [
+            EvidenceForScoring(
+                source_type=EvidenceType(e.get("source_type", "SELF_REPORT")),
+                source_text=e.get("source_text", ""),
+                weight=e.get("weight", 0.3),
+                trait_signal=e.get("trait_signal", "neutral"),
+                signal_strength=e.get("signal_strength", 0.5),
+                star_components=e.get("star_components", {}),
+                contains_conflict=e.get("contains_conflict", False),
+                contains_failure=e.get("contains_failure", False),
+            )
+            for e in state.evidence_items
+            if e.get("trait_id") == trait_id
+        ]
+
+        # Calibrate score
+        score = await calibrator.calibrate_trait_score(
+            trait_id=trait_id,
+            trait_name=trait_meta.get("name", "Unknown"),
+            evidence_items=trait_evidence,
+            behavioral_anchors={},
+            counter_indicators=[],
+        )
+
+        all_calibrated_scores.append(score)
+
+        # Convert 1-5 to 0-10 scale
+        score_0_10 = (score.calibrated_score - 1) * 2.5
+
+        trait_scores[trait_id] = {
+            "trait_name": trait_meta.get("name", "Unknown"),
+            "score": round(score_0_10, 1),
+            "confidence": score.confidence,
+            "explanation": score.explanation,
+        }
+
+    # Generate assessment
+    assessment = await calibrator.generate_assessment(all_calibrated_scores)
+
+    # Update candidate with results
+    candidate.trait_scores = trait_scores
+    candidate.composite_score = round((assessment.composite_score.composite_score - 1) * 2.5, 1)
+    candidate.recommendation = assessment.recommendation.value
+    candidate.recommendation_rationale = assessment.recommendation_rationale

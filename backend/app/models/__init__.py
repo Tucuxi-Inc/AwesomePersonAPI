@@ -35,6 +35,13 @@ from app.models.candidate_job_screening import (
     QualificationStatus,
     RequirementStatus,
 )
+from app.models.simple_assessment import SimpleAssessment, SimpleAssessmentStatus
+from app.models.simple_candidate import (
+    SimpleCandidate,
+    SimpleQualificationStatus,
+    SimpleInterviewStatus,
+)
+from app.models.api_key import APIKey, APIKeyTier, TIER_LIMITS
 
 __all__ = [
     "Organization",
@@ -84,4 +91,13 @@ __all__ = [
     "CandidateJobScreening",
     "QualificationStatus",
     "RequirementStatus",
+    # Simple Mode
+    "SimpleAssessment",
+    "SimpleAssessmentStatus",
+    "SimpleCandidate",
+    "SimpleQualificationStatus",
+    "SimpleInterviewStatus",
+    "APIKey",
+    "APIKeyTier",
+    "TIER_LIMITS",
 ]
