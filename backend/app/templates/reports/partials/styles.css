@@ -1,0 +1,455 @@
+/* PDF Report Styles for Simple Mode Assessment */
+
+/* Page Setup */
+@page {
+    size: letter;
+    margin: 0.75in;
+    @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #6b7280;
+    }
+}
+
+/* Base Styles */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #1f2937;
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2, h3, h4 {
+    margin-top: 0;
+    color: #111827;
+}
+
+p {
+    margin: 0 0 0.75rem 0;
+}
+
+/* Page Breaks */
+.page-break {
+    page-break-after: always;
+}
+
+/* Cover Page */
+.cover-page {
+    text-align: center;
+    padding-top: 3in;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.cover-page .logo {
+    font-size: 24pt;
+    font-weight: bold;
+    color: #3b82f6;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.cover-page .report-title {
+    font-size: 36pt;
+    font-weight: 300;
+    margin-bottom: 0.5rem;
+    color: #111827;
+}
+
+.cover-page .job-title {
+    font-size: 20pt;
+    color: #4b5563;
+    font-weight: normal;
+    margin-bottom: 2rem;
+}
+
+.cover-page .meta {
+    margin-top: 2rem;
+    color: #6b7280;
+}
+
+.cover-page .meta p {
+    margin: 0.25rem 0;
+}
+
+.cover-page .footer-note {
+    position: absolute;
+    bottom: 1in;
+    color: #9ca3af;
+    font-size: 10pt;
+}
+
+/* Section Styles */
+.section-title {
+    font-size: 20pt;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.section-description {
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-box {
+    flex: 1;
+    background: #f9fafb;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+}
+
+.stat-box-highlight {
+    background: #ecfdf5;
+    border-color: #10b981;
+}
+
+.stat-value {
+    display: block;
+    font-size: 28pt;
+    font-weight: bold;
+    color: #111827;
+}
+
+.stat-box-highlight .stat-value {
+    color: #059669;
+}
+
+.stat-label {
+    display: block;
+    font-size: 10pt;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+/* Traits Section */
+.traits-section {
+    margin-bottom: 2rem;
+}
+
+.traits-section h3 {
+    font-size: 14pt;
+    margin-bottom: 0.75rem;
+}
+
+.trait-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.trait-list li {
+    background: #eff6ff;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 10pt;
+}
+
+.trait-list .trait-name {
+    font-weight: 600;
+    color: #1e40af;
+}
+
+.trait-list .trait-category {
+    color: #6b7280;
+    font-size: 9pt;
+}
+
+/* Job Description */
+.job-description-section h3 {
+    font-size: 14pt;
+    margin-bottom: 0.75rem;
+}
+
+.job-description {
+    color: #4b5563;
+    font-size: 10pt;
+    line-height: 1.7;
+}
+
+/* Rankings Table */
+.ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.ranking-table th,
+.ranking-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.ranking-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4b5563;
+}
+
+.ranking-table .col-rank {
+    width: 60px;
+}
+
+.ranking-table .col-score {
+    width: 80px;
+    text-align: center;
+}
+
+.ranking-table .col-recommendation {
+    width: 140px;
+    text-align: center;
+}
+
+.ranking-table .rank {
+    font-weight: bold;
+    color: #6b7280;
+}
+
+.ranking-table .candidate-name {
+    display: block;
+    font-weight: 600;
+}
+
+.ranking-table .candidate-email {
+    display: block;
+    font-size: 9pt;
+    color: #6b7280;
+}
+
+.ranking-table .score {
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Recommendation Badges */
+.recommendation-badge {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    font-size: 9pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.recommendation-strong-hire {
+    background-color: #10b981;
+    color: white;
+}
+
+.recommendation-hire {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.recommendation-hold {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.recommendation-no-hire {
+    background-color: #ef4444;
+    color: white;
+}
+
+.recommendation-none {
+    background-color: #9ca3af;
+    color: white;
+}
+
+/* Candidate Detail Page */
+.candidate-detail {
+    page-break-inside: avoid;
+}
+
+.candidate-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.candidate-header .candidate-name {
+    font-size: 22pt;
+    margin: 0;
+}
+
+.candidate-header .candidate-email {
+    color: #6b7280;
+    margin: 0;
+}
+
+.candidate-rank {
+    text-align: right;
+}
+
+.candidate-rank .rank-label {
+    display: block;
+    font-size: 9pt;
+    color: #6b7280;
+    text-transform: uppercase;
+}
+
+.candidate-rank .rank-value {
+    display: block;
+    font-size: 24pt;
+    font-weight: bold;
+    color: #111827;
+}
+
+/* Recommendation Banner */
+.recommendation-banner {
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.recommendation-banner .rec-label {
+    font-weight: bold;
+    font-size: 14pt;
+}
+
+.recommendation-banner .rec-score {
+    font-size: 12pt;
+}
+
+/* Trait Score Cards */
+.trait-scores-section {
+    margin-bottom: 1.5rem;
+}
+
+.trait-scores-section h3 {
+    font-size: 14pt;
+    margin-bottom: 1rem;
+}
+
+.trait-score-card {
+    background: #f9fafb;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    page-break-inside: avoid;
+}
+
+.trait-score-card .trait-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.trait-score-card .trait-name {
+    font-weight: 600;
+    font-size: 12pt;
+}
+
+.trait-score-card .trait-score {
+    font-weight: bold;
+    font-size: 14pt;
+    color: #3b82f6;
+}
+
+/* Score Bar */
+.score-bar {
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.score-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #10b981);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.trait-explanation {
+    font-size: 10pt;
+    color: #4b5563;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Rationale Section */
+.rationale-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.rationale-section h3 {
+    font-size: 14pt;
+    margin-bottom: 0.75rem;
+}
+
+.rationale-text {
+    color: #4b5563;
+    line-height: 1.7;
+}
+
+/* Report Footer */
+.report-footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 2px solid #e5e7eb;
+}
+
+.footer-content {
+    text-align: center;
+}
+
+.footer-brand {
+    font-weight: 600;
+    color: #3b82f6;
+    margin-bottom: 0.25rem;
+}
+
+.footer-date {
+    color: #6b7280;
+    font-size: 10pt;
+    margin-bottom: 0.75rem;
+}
+
+.footer-disclaimer {
+    font-size: 9pt;
+    color: #9ca3af;
+    font-style: italic;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.5;
+}

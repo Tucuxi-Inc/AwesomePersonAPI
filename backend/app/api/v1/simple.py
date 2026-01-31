@@ -17,6 +17,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
+from fastapi.responses import Response
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -563,3 +564,104 @@ async def delete_assessment(
     await db.commit()
 
     return {"status": "deleted"}
+
+
+# --- Delete Candidate ---
+
+@router.delete("/assessments/{assessment_id}/candidates/{candidate_id}")
+async def delete_candidate(
+    assessment_id: str,
+    candidate_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """Delete a candidate from an assessment."""
+    result = await db.execute(
+        select(SimpleCandidate)
+        .join(SimpleAssessment)
+        .where(SimpleCandidate.id == uuid.UUID(candidate_id))
+        .where(SimpleAssessment.id == uuid.UUID(assessment_id))
+        .where(SimpleAssessment.organization_id == current_user.organization_id)
+    )
+    candidate = result.scalar_one_or_none()
+
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Update assessment counts
+    assessment_result = await db.execute(
+        select(SimpleAssessment).where(SimpleAssessment.id == uuid.UUID(assessment_id))
+    )
+    assessment = assessment_result.scalar_one()
+    assessment.total_candidates = max(0, assessment.total_candidates - 1)
+    if candidate.qualification_status == SimpleQualificationStatus.QUALIFIED:
+        assessment.qualified_candidates = max(0, assessment.qualified_candidates - 1)
+
+    await db.delete(candidate)
+    await db.commit()
+
+    return {"status": "deleted"}
+
+
+# --- Step 7: Export PDF Report ---
+
+@router.get("/assessments/{assessment_id}/export/pdf")
+async def export_assessment_pdf(
+    assessment_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Response:
+    """
+    Export assessment results as PDF report (Step 7).
+
+    Generates a professional PDF report containing:
+    - Assessment summary with job details
+    - Candidate rankings by composite score
+    - Detailed trait scores and explanations for each candidate
+    - Recommendations and rationale
+    """
+    from app.models import Trait
+    from app.services.pdf_generator import get_pdf_generator
+
+    # Get assessment with candidates and organization
+    result = await db.execute(
+        select(SimpleAssessment)
+        .where(SimpleAssessment.id == uuid.UUID(assessment_id))
+        .where(SimpleAssessment.organization_id == current_user.organization_id)
+        .options(selectinload(SimpleAssessment.candidates))
+        .options(selectinload(SimpleAssessment.organization))
+    )
+    assessment = result.scalar_one_or_none()
+
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    # Get selected traits
+    trait_result = await db.execute(
+        select(Trait).where(
+            Trait.id.in_([uuid.UUID(tid) for tid in assessment.selected_trait_ids])
+        )
+    )
+    traits = list(trait_result.scalars().all())
+
+    # Generate PDF
+    generator = get_pdf_generator()
+    pdf_bytes = await generator.generate_assessment_report(
+        assessment=assessment,
+        candidates=list(assessment.candidates),
+        traits=traits,
+        organization_name=assessment.organization.name if assessment.organization else "Assessment Platform",
+    )
+
+    # Create filename from job title
+    safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in assessment.job_title)
+    safe_title = safe_title.replace(" ", "-")[:50]
+    filename = f"assessment-{safe_title}-{str(assessment_id)[:8]}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )

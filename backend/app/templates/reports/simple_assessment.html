@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment Report - {{ report.job_title }}</title>
+</head>
+<body>
+    <!-- Cover Page -->
+    <div class="cover-page">
+        <div class="logo">{{ report.organization_name }}</div>
+        <h1 class="report-title">Assessment Report</h1>
+        <h2 class="job-title">{{ report.job_title }}</h2>
+        <div class="meta">
+            <p class="date">Generated: {{ report.generated_at.strftime('%B %d, %Y') }}</p>
+            <p class="stats">{{ report.completed_interviews }} of {{ report.total_candidates }} candidates assessed</p>
+        </div>
+        <div class="footer-note">
+            <p>Powered by AP API Assessment Platform</p>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="page-break"></div>
+    <section class="summary-section">
+        <h2 class="section-title">Executive Summary</h2>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <span class="stat-value">{{ report.total_candidates }}</span>
+                <span class="stat-label">Total Candidates</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value">{{ report.completed_interviews }}</span>
+                <span class="stat-label">Interviews Completed</span>
+            </div>
+            <div class="stat-box stat-box-highlight">
+                <span class="stat-value">{{ report.candidates|selectattr('recommendation', 'equalto', 'STRONG_HIRE')|list|length }}</span>
+                <span class="stat-label">Strong Hires</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value">{{ report.candidates|selectattr('recommendation', 'equalto', 'HIRE')|list|length }}</span>
+                <span class="stat-label">Hires</span>
+            </div>
+        </div>
+
+        <div class="traits-section">
+            <h3>Traits Assessed</h3>
+            <ul class="trait-list">
+            {% for trait in report.selected_traits %}
+                <li>
+                    <span class="trait-name">{{ trait.name }}</span>
+                    <span class="trait-category">({{ trait.category }})</span>
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+
+        <div class="job-description-section">
+            <h3>Position Overview</h3>
+            <p class="job-description">{{ report.job_description }}</p>
+        </div>
+    </section>
+
+    <!-- Candidate Rankings -->
+    <div class="page-break"></div>
+    <section class="rankings-section">
+        <h2 class="section-title">Candidate Rankings</h2>
+        <p class="section-description">Candidates ranked by composite assessment score</p>
+
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">Rank</th>
+                    <th class="col-name">Candidate</th>
+                    <th class="col-score">Score</th>
+                    <th class="col-recommendation">Recommendation</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for candidate in report.candidates %}
+                <tr>
+                    <td class="rank">#{{ candidate.rank }}</td>
+                    <td class="name">
+                        <span class="candidate-name">{{ candidate.full_name }}</span>
+                        <span class="candidate-email">{{ candidate.email }}</span>
+                    </td>
+                    <td class="score">{{ "%.1f"|format(candidate.composite_score or 0) }}/10</td>
+                    <td class="recommendation">
+                        <span class="recommendation-badge recommendation-{{ (candidate.recommendation or 'none')|lower|replace('_', '-') }}">
+                            {{ (candidate.recommendation or 'N/A')|replace('_', ' ') }}
+                        </span>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Individual Candidate Reports -->
+    {% for candidate in report.candidates %}
+    <div class="page-break"></div>
+    <section class="candidate-detail">
+        <div class="candidate-header">
+            <div class="candidate-info">
+                <h2 class="candidate-name">{{ candidate.full_name }}</h2>
+                <p class="candidate-email">{{ candidate.email }}</p>
+            </div>
+            <div class="candidate-rank">
+                <span class="rank-label">Rank</span>
+                <span class="rank-value">#{{ candidate.rank }}</span>
+            </div>
+        </div>
+
+        <!-- Recommendation Banner -->
+        <div class="recommendation-banner recommendation-{{ (candidate.recommendation or 'none')|lower|replace('_', '-') }}">
+            <span class="rec-label">{{ (candidate.recommendation or 'No Recommendation')|replace('_', ' ') }}</span>
+            <span class="rec-score">Overall Score: {{ "%.1f"|format(candidate.composite_score or 0) }}/10</span>
+        </div>
+
+        <!-- Trait Scores -->
+        <div class="trait-scores-section">
+            <h3>Trait Assessment</h3>
+            {% for trait in candidate.trait_scores %}
+            <div class="trait-score-card">
+                <div class="trait-header">
+                    <span class="trait-name">{{ trait.trait_name }}</span>
+                    <span class="trait-score">{{ "%.1f"|format(trait.score) }}/10</span>
+                </div>
+                <div class="score-bar">
+                    <div class="score-fill" style="width: {{ (trait.score * 10)|int }}%"></div>
+                </div>
+                {% if trait.explanation %}
+                <p class="trait-explanation">{{ trait.explanation }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Assessment Summary -->
+        {% if candidate.recommendation_rationale %}
+        <div class="rationale-section">
+            <h3>Assessment Summary</h3>
+            <p class="rationale-text">{{ candidate.recommendation_rationale }}</p>
+        </div>
+        {% endif %}
+    </section>
+    {% endfor %}
+
+    <!-- Footer -->
+    <div class="report-footer">
+        <div class="footer-content">
+            <p class="footer-brand">Generated by {{ report.organization_name }} Assessment Platform</p>
+            <p class="footer-date">Report Date: {{ report.generated_at.strftime('%B %d, %Y at %H:%M UTC') }}</p>
+            <p class="footer-disclaimer">
+                This report contains confidential assessment data. Handle according to your organization's data policies.
+                Assessment scores are based on structured behavioral interviews and should be used as one component of hiring decisions.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

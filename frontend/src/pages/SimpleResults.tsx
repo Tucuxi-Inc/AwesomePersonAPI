@@ -92,6 +92,7 @@ export default function SimpleResults() {
 
   const [results, setResults] = useState<SimpleResultsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<SimpleCandidateResult | null>(null);
 
@@ -115,18 +116,27 @@ export default function SimpleResults() {
   };
 
   const handleExportPdf = async () => {
-    if (!id) return;
+    if (!id || isExporting) return;
+
+    setIsExporting(true);
+    setError(null);
+
     try {
       const response = await api.exportSimplePdf(id);
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `assessment-${id}-results.pdf`;
+      a.download = `assessment-${results?.job_title?.replace(/\s+/g, '-') || id}-results.pdf`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError('PDF export is not yet available');
+      console.error('PDF export failed:', err);
+      setError('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -175,9 +185,18 @@ export default function SimpleResults() {
           <h1 className="text-3xl font-bold tracking-tight">{results.job_title}</h1>
           <p className="text-muted-foreground">Assessment Results</p>
         </div>
-        <Button onClick={handleExportPdf} disabled>
-          <Download className="mr-2 h-4 w-4" />
-          Export PDF
+        <Button onClick={handleExportPdf} disabled={isExporting || results.results.length === 0}>
+          {isExporting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Export PDF
+            </>
+          )}
         </Button>
       </div>
 

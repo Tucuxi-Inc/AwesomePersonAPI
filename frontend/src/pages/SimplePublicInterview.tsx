@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import {
@@ -55,11 +55,29 @@ export default function SimplePublicInterview() {
     recommendation: string | null;
   } | null>(null);
 
+  // Refs for UX improvements
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (token) {
       loadInterviewInfo(token);
     }
   }, [token]);
+
+  // Auto-scroll transcript to bottom when new messages are added
+  useEffect(() => {
+    if (transcriptEndRef.current) {
+      transcriptEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [transcript, isSubmitting]);
+
+  // Auto-focus textarea after phase changes or submission
+  useEffect(() => {
+    if (phase === 'interview' && !isSubmitting && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [phase, isSubmitting, transcript]);
 
   const loadInterviewInfo = async (interviewToken: string) => {
     setPhase('loading');
@@ -364,28 +382,39 @@ export default function SimplePublicInterview() {
                   </div>
                 </div>
               )}
+
+              {/* Scroll anchor for auto-scroll */}
+              <div ref={transcriptEndRef} />
             </CardContent>
 
             {/* Response Input */}
             <div className="p-4 border-t">
               <div className="flex gap-2">
                 <Textarea
+                  ref={textareaRef}
                   value={response}
                   onChange={(e) => setResponse(e.target.value)}
                   placeholder="Type your response here... Be specific and use examples from your experience."
                   className="min-h-[100px] resize-none"
                   disabled={isSubmitting}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.metaKey) {
+                    // Support both Cmd+Enter (Mac) and Ctrl+Enter (Windows/Linux)
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
                       handleSubmitResponse();
                     }
                   }}
                 />
               </div>
               <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-muted-foreground">
-                  Press Cmd+Enter to submit
-                </p>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>
+                    {navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+Enter to submit
+                  </span>
+                  <span>
+                    {response.trim().split(/\s+/).filter(Boolean).length} words
+                  </span>
+                </div>
                 <Button
                   onClick={handleSubmitResponse}
                   disabled={!response.trim() || isSubmitting}
