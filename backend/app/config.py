@@ -43,6 +43,21 @@ class Settings(BaseSettings):
     FILE_UPLOAD_DIR: str = "./uploads"
     MAX_RESUME_SIZE_MB: float = 10.0
 
+    # Email Configuration
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@example.com"
+    SMTP_FROM_NAME: str = "AP API Assessment"
+    SMTP_USE_TLS: bool = True
+    FRONTEND_BASE_URL: str = "http://localhost:3003"
+
+    @property
+    def smtp_configured(self) -> bool:
+        """Check if SMTP is properly configured."""
+        return bool(self.SMTP_USER and self.SMTP_PASSWORD)
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -75,6 +75,10 @@ from app.services.qualification_screener import (
     QualificationScreener,
     get_qualification_screener,
 )
+from app.services.email_service import (
+    EmailService,
+    get_email_service,
+)
 
 __all__ = [
     # LLM Client
@@ -137,4 +141,7 @@ __all__ = [
     # Qualification Screener
     "QualificationScreener",
     "get_qualification_screener",
+    # Email Service
+    "EmailService",
+    "get_email_service",
 ]

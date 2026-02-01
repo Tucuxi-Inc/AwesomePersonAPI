@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Invitation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #1a1a1a;
+            font-size: 24px;
+            margin: 0 0 10px 0;
+        }
+        .header p {
+            color: #666;
+            font-size: 16px;
+            margin: 0;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .content p {
+            margin: 0 0 15px 0;
+        }
+        .tips-box {
+            background-color: #f0f7ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .tips-box h3 {
+            color: #1e40af;
+            margin: 0 0 15px 0;
+            font-size: 16px;
+        }
+        .tips-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .tips-box li {
+            margin-bottom: 8px;
+            color: #334155;
+        }
+        .cta-container {
+            text-align: center;
+            margin: 35px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .cta-button:hover {
+            background-color: #2563eb;
+        }
+        .expiration-notice {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        .custom-message {
+            background-color: #fefce8;
+            border: 1px solid #fde047;
+            padding: 15px 20px;
+            margin: 25px 0;
+            border-radius: 8px;
+        }
+        .custom-message-label {
+            font-weight: 600;
+            color: #854d0e;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .custom-message-content {
+            color: #713f12;
+        }
+        .footer {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        .ai-disclosure {
+            background-color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 15px;
+        }
+        .footer-links {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Interview Invitation</h1>
+            <p>{{ organization_name }}</p>
+        </div>
+
+        <div class="greeting">
+            Hi {{ candidate_name }},
+        </div>
+
+        <div class="content">
+            <p>
+                <strong>{{ organization_name }}</strong> has invited you to complete an interview assessment
+                for the <strong>{{ job_title }}</strong> position.
+            </p>
+            <p>
+                This is an AI-guided behavioral interview that takes approximately 25-30 minutes.
+                You'll be asked about your experiences and how you've handled various situations in the past.
+            </p>
+        </div>
+
+        <div class="tips-box">
+            <h3>Tips for Success</h3>
+            <ul>
+                <li>Find a quiet place where you won't be interrupted</li>
+                <li>Use specific examples from your experience</li>
+                <li>Take your time &mdash; there's no time limit</li>
+                <li>Be yourself &mdash; we want to understand how you think</li>
+            </ul>
+        </div>
+
+        <div class="cta-container">
+            <a href="{{ interview_url }}" class="cta-button">Start Interview</a>
+        </div>
+
+        <p class="expiration-notice">
+            This link expires in 7 days.
+        </p>
+
+        {% if custom_message %}
+        <div class="custom-message">
+            <div class="custom-message-label">Message from the employer:</div>
+            <div class="custom-message-content">{{ custom_message }}</div>
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <div class="ai-disclosure">
+                This interview is conducted using AI technology to ensure a consistent
+                and fair assessment experience for all candidates.
+            </div>
+            <div class="footer-links">
+                Powered by AP API Assessment Platform
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -51,6 +51,8 @@ from app.schemas.simple import (
 )
 from app.services import get_job_analyzer, get_resume_parser, get_resume_analyzer
 from app.services.qualification_screener import QualificationScreener
+from app.tasks.email_tasks import send_interview_invitation_email
+from app.core.encryption import decrypt_value
 
 router = APIRouter()
 
@@ -464,9 +466,11 @@ async def send_interview_invite(
     candidate.interview_status = SimpleInterviewStatus.INVITED
     candidate.invited_at = datetime.now(timezone.utc)
 
-    # Update assessment status
+    # Update assessment status and load organization for email
     assessment_result = await db.execute(
-        select(SimpleAssessment).where(SimpleAssessment.id == uuid.UUID(assessment_id))
+        select(SimpleAssessment)
+        .where(SimpleAssessment.id == uuid.UUID(assessment_id))
+        .options(selectinload(SimpleAssessment.organization))
     )
     assessment = assessment_result.scalar_one()
     if assessment.status == SimpleAssessmentStatus.CANDIDATES_PENDING:
@@ -475,8 +479,33 @@ async def send_interview_invite(
     await db.commit()
     await db.refresh(candidate)
 
-    # TODO: Send email with magic link
-    # The magic link URL would be: /public/interview/{token}
+    # Check for organization-specific email settings
+    smtp_settings = None
+    if assessment.organization and assessment.organization.settings:
+        org_email = assessment.organization.settings.get("email", {})
+        if org_email.get("smtp_password_encrypted"):
+            decrypted_password = decrypt_value(org_email["smtp_password_encrypted"])
+            if decrypted_password:
+                smtp_settings = {
+                    "smtp_host": org_email.get("smtp_host", ""),
+                    "smtp_port": org_email.get("smtp_port", 587),
+                    "smtp_user": org_email.get("smtp_user", ""),
+                    "smtp_password": decrypted_password,
+                    "smtp_from_email": org_email.get("smtp_from_email", ""),
+                    "smtp_from_name": org_email.get("smtp_from_name", ""),
+                    "smtp_use_tls": org_email.get("smtp_use_tls", True),
+                }
+
+    # Queue email task to send invitation
+    send_interview_invitation_email.delay(
+        candidate_email=candidate.email,
+        candidate_name=candidate.full_name,
+        job_title=assessment.job_title,
+        organization_name=assessment.organization.name if assessment.organization else "Assessment Platform",
+        interview_token=token,
+        custom_message=request.custom_message if request else None,
+        smtp_settings=smtp_settings,
+    )
 
     return _to_candidate_response(candidate)
 

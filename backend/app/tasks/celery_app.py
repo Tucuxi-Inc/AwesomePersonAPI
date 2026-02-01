@@ -8,7 +8,7 @@ celery_app = Celery(
     "ap_api",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.background"],
+    include=["app.tasks.background", "app.tasks.email_tasks"],
 )
 
 # Celery configuration

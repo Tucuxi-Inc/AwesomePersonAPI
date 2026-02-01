@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/api/client';
-import { Organization } from '@/types';
+import { Organization, EmailSettings } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   User,
   Building2,
   Key,
+  Mail,
   Loader2,
   CheckCircle,
   AlertTriangle,
+  Send,
 } from 'lucide-react';
 
 export default function Settings() {
@@ -47,6 +50,26 @@ export default function Settings() {
   const [orgFetching, setOrgFetching] = useState(false);
   const [orgSuccess, setOrgSuccess] = useState(false);
   const [orgError, setOrgError] = useState<string | null>(null);
+
+  // Email settings state
+  const [emailSettings, setEmailSettings] = useState<EmailSettings | null>(null);
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpFromEmail, setSmtpFromEmail] = useState('');
+  const [smtpFromName, setSmtpFromName] = useState('');
+  const [smtpUseTls, setSmtpUseTls] = useState(true);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailFetching, setEmailFetching] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  // Test email state
+  const [testEmail, setTestEmail] = useState('');
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
+  const [testEmailSuccess, setTestEmailSuccess] = useState<string | null>(null);
+  const [testEmailError, setTestEmailError] = useState<string | null>(null);
 
   // Initialize profile form with current user data
   useEffect(() => {
@@ -81,6 +104,34 @@ export default function Settings() {
 
     fetchOrg();
   }, [user?.organization_id]);
+
+  const isAdmin = user?.role === 'ADMIN' || user?.is_superuser;
+
+  // Fetch email settings
+  useEffect(() => {
+    const fetchEmailSettings = async () => {
+      if (!user?.organization_id || !(user?.role === 'ADMIN' || user?.is_superuser)) return;
+
+      setEmailFetching(true);
+      try {
+        const response = await api.getEmailSettings(user.organization_id);
+        const settings = response.data;
+        setEmailSettings(settings);
+        setSmtpHost(settings.smtp_host || '');
+        setSmtpPort(settings.smtp_port || 587);
+        setSmtpUser(settings.smtp_user || '');
+        setSmtpFromEmail(settings.smtp_from_email || '');
+        setSmtpFromName(settings.smtp_from_name || '');
+        setSmtpUseTls(settings.smtp_use_tls ?? true);
+      } catch (err) {
+        console.error('Failed to fetch email settings:', err);
+      } finally {
+        setEmailFetching(false);
+      }
+    };
+
+    fetchEmailSettings();
+  }, [user?.organization_id, user?.role, user?.is_superuser]);
 
   // Handle profile update
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -169,7 +220,60 @@ export default function Settings() {
     }
   };
 
-  const isAdmin = user?.role === 'ADMIN' || user?.is_superuser;
+  // Handle email settings update
+  const handleEmailSettingsUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.organization_id) return;
+
+    setEmailLoading(true);
+    setEmailError(null);
+    setEmailSuccess(false);
+
+    try {
+      const response = await api.updateEmailSettings(user.organization_id, {
+        smtp_host: smtpHost.trim(),
+        smtp_port: smtpPort,
+        smtp_user: smtpUser.trim(),
+        smtp_password: smtpPassword || undefined,
+        smtp_from_email: smtpFromEmail.trim(),
+        smtp_from_name: smtpFromName.trim(),
+        smtp_use_tls: smtpUseTls,
+      });
+      setEmailSettings(response.data);
+      setSmtpPassword(''); // Clear password field after save
+      setEmailSuccess(true);
+      setTimeout(() => setEmailSuccess(false), 3000);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setEmailError(error.response?.data?.detail || 'Failed to update email settings');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  // Handle test email
+  const handleTestEmail = async () => {
+    if (!user?.organization_id || !testEmail) return;
+
+    setTestEmailLoading(true);
+    setTestEmailSuccess(null);
+    setTestEmailError(null);
+
+    try {
+      const response = await api.testEmailSettings(user.organization_id, testEmail);
+      if (response.data.success) {
+        setTestEmailSuccess(response.data.message);
+        setTimeout(() => setTestEmailSuccess(null), 5000);
+      } else {
+        setTestEmailError(response.data.error_detail || response.data.message);
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setTestEmailError(error.response?.data?.detail || 'Failed to send test email');
+    } finally {
+      setTestEmailLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -195,6 +299,12 @@ export default function Settings() {
             <TabsTrigger value="organization" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Organization
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email
             </TabsTrigger>
           )}
         </TabsList>
@@ -559,6 +669,218 @@ export default function Settings() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+          </TabsContent>
+        )}
+
+        {/* Email Settings Tab (Admin only) */}
+        {isAdmin && (
+          <TabsContent value="email">
+            {emailFetching ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Email Configuration</CardTitle>
+                    <CardDescription>
+                      Configure SMTP settings for sending interview invitations and notifications.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleEmailSettingsUpdate} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="smtp_host">SMTP Host</Label>
+                          <Input
+                            id="smtp_host"
+                            value={smtpHost}
+                            onChange={(e) => setSmtpHost(e.target.value)}
+                            placeholder="smtp.gmail.com"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="smtp_port">SMTP Port</Label>
+                          <Input
+                            id="smtp_port"
+                            type="number"
+                            value={smtpPort}
+                            onChange={(e) => setSmtpPort(parseInt(e.target.value) || 587)}
+                            min={1}
+                            max={65535}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="smtp_user">SMTP Username</Label>
+                          <Input
+                            id="smtp_user"
+                            value={smtpUser}
+                            onChange={(e) => setSmtpUser(e.target.value)}
+                            placeholder="your-email@gmail.com"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="smtp_password">SMTP Password</Label>
+                          <Input
+                            id="smtp_password"
+                            type="password"
+                            value={smtpPassword}
+                            onChange={(e) => setSmtpPassword(e.target.value)}
+                            placeholder={emailSettings?.smtp_password_set ? '••••••••' : 'Enter password'}
+                          />
+                          {emailSettings?.smtp_password_set && (
+                            <p className="text-xs text-muted-foreground">
+                              Password is configured. Leave blank to keep existing.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="smtp_from_email">From Email</Label>
+                          <Input
+                            id="smtp_from_email"
+                            type="email"
+                            value={smtpFromEmail}
+                            onChange={(e) => setSmtpFromEmail(e.target.value)}
+                            placeholder="noreply@yourcompany.com"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="smtp_from_name">From Name</Label>
+                          <Input
+                            id="smtp_from_name"
+                            value={smtpFromName}
+                            onChange={(e) => setSmtpFromName(e.target.value)}
+                            placeholder="Your Company"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="smtp_use_tls"
+                          checked={smtpUseTls}
+                          onCheckedChange={(checked) => setSmtpUseTls(checked === true)}
+                        />
+                        <Label htmlFor="smtp_use_tls" className="text-sm font-normal">
+                          Use TLS (recommended for secure email transmission)
+                        </Label>
+                      </div>
+
+                      {emailSettings?.is_configured && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-3 rounded-md">
+                          <CheckCircle className="h-4 w-4" />
+                          Email is configured
+                          {emailSettings.configured_at && (
+                            <span className="text-muted-foreground">
+                              (Last updated: {new Date(emailSettings.configured_at).toLocaleDateString()})
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {emailError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          {emailError}
+                        </div>
+                      )}
+
+                      {emailSuccess && (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                          Email settings saved successfully
+                        </div>
+                      )}
+
+                      <Button type="submit" disabled={emailLoading}>
+                        {emailLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Email Settings'
+                        )}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>Test Configuration</CardTitle>
+                    <CardDescription>
+                      Send a test email to verify your SMTP settings are working correctly.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4 max-w-md">
+                      <div className="space-y-2">
+                        <Label htmlFor="test_email">Recipient Email</Label>
+                        <Input
+                          id="test_email"
+                          type="email"
+                          value={testEmail}
+                          onChange={(e) => setTestEmail(e.target.value)}
+                          placeholder="your-email@example.com"
+                        />
+                      </div>
+
+                      {testEmailError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          {testEmailError}
+                        </div>
+                      )}
+
+                      {testEmailSuccess && (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                          {testEmailSuccess}
+                        </div>
+                      )}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleTestEmail}
+                        disabled={testEmailLoading || !testEmail || !emailSettings?.is_configured}
+                      >
+                        {testEmailLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-2" />
+                            Send Test Email
+                          </>
+                        )}
+                      </Button>
+
+                      {!emailSettings?.is_configured && (
+                        <p className="text-xs text-muted-foreground">
+                          Please save your email settings before sending a test email.
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
             )}
           </TabsContent>
         )}

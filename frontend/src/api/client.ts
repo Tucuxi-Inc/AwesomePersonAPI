@@ -92,6 +92,25 @@ export const api = {
 
   deleteOrganization: (id: string) => client.delete(`/organizations/${id}`),
 
+  // Email Settings (Admin)
+  getEmailSettings: (orgId: string) =>
+    client.get(`/organizations/${orgId}/email-settings`),
+
+  updateEmailSettings: (orgId: string, data: {
+    smtp_host: string;
+    smtp_port: number;
+    smtp_user: string;
+    smtp_password?: string;
+    smtp_from_email: string;
+    smtp_from_name: string;
+    smtp_use_tls: boolean;
+  }) => client.put(`/organizations/${orgId}/email-settings`, data),
+
+  testEmailSettings: (orgId: string, recipientEmail: string) =>
+    client.post(`/organizations/${orgId}/email-settings/test`, {
+      recipient_email: recipientEmail,
+    }),
+
   // Users
   getUsers: (params?: { skip?: number; limit?: number; search?: string; organization_id?: string }) =>
     client.get('/users', { params }),

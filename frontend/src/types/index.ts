@@ -1074,3 +1074,37 @@ export interface APIKeyCreate {
 export interface APIKeyResponse extends APIKey {
   full_key?: string; // Only returned on creation
 }
+
+// Email Settings Types
+export interface EmailSettings {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_password_set: boolean;
+  smtp_from_email: string;
+  smtp_from_name: string;
+  smtp_use_tls: boolean;
+  configured_at: string | null;
+  configured_by: string | null;
+  is_configured: boolean;
+}
+
+export interface EmailSettingsUpdate {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_password?: string;
+  smtp_from_email: string;
+  smtp_from_name: string;
+  smtp_use_tls: boolean;
+}
+
+export interface TestEmailRequest {
+  recipient_email: string;
+}
+
+export interface TestEmailResponse {
+  success: boolean;
+  message: string;
+  error_detail: string | null;
+}

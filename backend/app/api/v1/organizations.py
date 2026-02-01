@@ -1,5 +1,6 @@
 """Organization endpoints."""
 
+from datetime import datetime, timezone
 from typing import Annotated, Optional
 import uuid
 
@@ -15,6 +16,13 @@ from app.schemas.organization import (
     OrganizationResponse,
     OrganizationList,
 )
+from app.schemas.email_settings import (
+    EmailSettingsUpdate,
+    EmailSettingsResponse,
+    TestEmailRequest,
+    TestEmailResponse,
+)
+from app.core.encryption import encrypt_value, decrypt_value
 
 router = APIRouter()
 
@@ -155,3 +163,241 @@ async def delete_organization(
 
     await db.delete(org)
     await db.commit()
+
+
+# --- Email Settings Endpoints ---
+
+
+@router.get("/{org_id}/email-settings", response_model=EmailSettingsResponse)
+async def get_email_settings(
+    org_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> EmailSettingsResponse:
+    """Get organization email/SMTP settings (admin only)."""
+    # Get organization
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    # Check access
+    if not current_user.is_superuser and current_user.organization_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this organization's settings",
+        )
+
+    # Get email settings from organization settings
+    email_settings = (org.settings or {}).get("email", {})
+
+    # Check if configured
+    is_configured = bool(
+        email_settings.get("smtp_host")
+        and email_settings.get("smtp_user")
+        and email_settings.get("smtp_password_encrypted")
+    )
+
+    return EmailSettingsResponse(
+        smtp_host=email_settings.get("smtp_host", ""),
+        smtp_port=email_settings.get("smtp_port", 587),
+        smtp_user=email_settings.get("smtp_user", ""),
+        smtp_password_set=bool(email_settings.get("smtp_password_encrypted")),
+        smtp_from_email=email_settings.get("smtp_from_email", ""),
+        smtp_from_name=email_settings.get("smtp_from_name", ""),
+        smtp_use_tls=email_settings.get("smtp_use_tls", True),
+        configured_at=email_settings.get("configured_at"),
+        configured_by=email_settings.get("configured_by"),
+        is_configured=is_configured,
+    )
+
+
+@router.put("/{org_id}/email-settings", response_model=EmailSettingsResponse)
+async def update_email_settings(
+    org_id: uuid.UUID,
+    settings_in: EmailSettingsUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> EmailSettingsResponse:
+    """Update organization email/SMTP settings (admin only)."""
+    # Get organization
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    # Check access
+    if not current_user.is_superuser and current_user.organization_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this organization's settings",
+        )
+
+    # Get existing settings or initialize
+    org_settings = org.settings or {}
+    existing_email = org_settings.get("email", {})
+
+    # Build new email settings
+    email_settings = {
+        "smtp_host": settings_in.smtp_host,
+        "smtp_port": settings_in.smtp_port,
+        "smtp_user": settings_in.smtp_user,
+        "smtp_from_email": settings_in.smtp_from_email,
+        "smtp_from_name": settings_in.smtp_from_name,
+        "smtp_use_tls": settings_in.smtp_use_tls,
+        "configured_at": datetime.now(timezone.utc).isoformat(),
+        "configured_by": str(current_user.id),
+    }
+
+    # Handle password: encrypt if provided, keep existing if not
+    if settings_in.smtp_password:
+        email_settings["smtp_password_encrypted"] = encrypt_value(settings_in.smtp_password)
+    elif existing_email.get("smtp_password_encrypted"):
+        email_settings["smtp_password_encrypted"] = existing_email["smtp_password_encrypted"]
+
+    # Update organization settings
+    org_settings["email"] = email_settings
+    org.settings = org_settings
+
+    await db.commit()
+    await db.refresh(org)
+
+    # Check if configured
+    is_configured = bool(
+        email_settings.get("smtp_host")
+        and email_settings.get("smtp_user")
+        and email_settings.get("smtp_password_encrypted")
+    )
+
+    return EmailSettingsResponse(
+        smtp_host=email_settings["smtp_host"],
+        smtp_port=email_settings["smtp_port"],
+        smtp_user=email_settings["smtp_user"],
+        smtp_password_set=bool(email_settings.get("smtp_password_encrypted")),
+        smtp_from_email=email_settings["smtp_from_email"],
+        smtp_from_name=email_settings["smtp_from_name"],
+        smtp_use_tls=email_settings["smtp_use_tls"],
+        configured_at=email_settings["configured_at"],
+        configured_by=email_settings["configured_by"],
+        is_configured=is_configured,
+    )
+
+
+@router.post("/{org_id}/email-settings/test", response_model=TestEmailResponse)
+async def test_email_settings(
+    org_id: uuid.UUID,
+    test_request: TestEmailRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> TestEmailResponse:
+    """Send a test email to verify SMTP configuration (admin only)."""
+    from app.services.email_service import EmailService
+
+    # Get organization
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    # Check access
+    if not current_user.is_superuser and current_user.organization_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to test this organization's email settings",
+        )
+
+    # Get email settings
+    email_settings = (org.settings or {}).get("email", {})
+
+    if not email_settings.get("smtp_password_encrypted"):
+        return TestEmailResponse(
+            success=False,
+            message="Email settings not configured",
+            error_detail="Please save your SMTP settings first",
+        )
+
+    # Decrypt password
+    smtp_password = decrypt_value(email_settings["smtp_password_encrypted"])
+    if not smtp_password:
+        return TestEmailResponse(
+            success=False,
+            message="Failed to decrypt SMTP password",
+            error_detail="The stored password could not be decrypted. Please re-enter your SMTP password.",
+        )
+
+    # Create email service with org settings
+    email_service = EmailService()
+
+    # Build test email content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2>Test Email from AP API</h2>
+        <p>This is a test email to verify your SMTP configuration.</p>
+        <p><strong>Organization:</strong> {org.name}</p>
+        <p><strong>Sent by:</strong> {current_user.email}</p>
+        <p><strong>Timestamp:</strong> {datetime.now(timezone.utc).isoformat()}</p>
+        <hr>
+        <p style="color: #666; font-size: 12px;">
+            If you received this email, your SMTP settings are configured correctly.
+        </p>
+    </body>
+    </html>
+    """
+
+    text_content = f"""
+Test Email from AP API
+
+This is a test email to verify your SMTP configuration.
+
+Organization: {org.name}
+Sent by: {current_user.email}
+Timestamp: {datetime.now(timezone.utc).isoformat()}
+
+If you received this email, your SMTP settings are configured correctly.
+    """
+
+    try:
+        success = await email_service.send_email_with_settings(
+            to_email=test_request.recipient_email,
+            subject=f"Test Email - {org.name}",
+            html_content=html_content,
+            text_content=text_content,
+            smtp_host=email_settings["smtp_host"],
+            smtp_port=email_settings["smtp_port"],
+            smtp_user=email_settings["smtp_user"],
+            smtp_password=smtp_password,
+            smtp_from_email=email_settings["smtp_from_email"],
+            smtp_from_name=email_settings["smtp_from_name"],
+            smtp_use_tls=email_settings["smtp_use_tls"],
+        )
+
+        if success:
+            return TestEmailResponse(
+                success=True,
+                message=f"Test email sent successfully to {test_request.recipient_email}",
+            )
+        else:
+            return TestEmailResponse(
+                success=False,
+                message="Failed to send test email",
+                error_detail="The email could not be sent. Check your SMTP settings.",
+            )
+    except Exception as e:
+        return TestEmailResponse(
+            success=False,
+            message="Failed to send test email",
+            error_detail=str(e),
+        )
