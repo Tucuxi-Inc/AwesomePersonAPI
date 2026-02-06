@@ -397,7 +397,10 @@ Do you have any questions for me about the role or the team?"""
             return await self._generate_conflict_probe(state, traits_metadata)
 
         # Check if we should ask reflection
-        if config.require_reflection and not progress.star_coverage.get("reflection"):
+        if progress.phase == ProbePhase.REFLECTION:
+            # Already asked reflection and got a response — mark it covered
+            progress.star_coverage["reflection"] = True
+        elif config.require_reflection and not progress.star_coverage.get("reflection"):
             progress.phase = ProbePhase.REFLECTION
             return await self._generate_reflection_probe(state, traits_metadata)
 

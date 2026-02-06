@@ -129,9 +129,9 @@ class EmailService:
         Returns:
             True if sent successfully, False otherwise
         """
-        if not smtp_host or not smtp_user or not smtp_password:
+        if not smtp_host:
             logger.warning(
-                "SMTP settings incomplete. Email would be sent to: %s, Subject: %s",
+                "SMTP host not set. Email would be sent to: %s, Subject: %s",
                 to_email,
                 subject,
             )
@@ -152,14 +152,17 @@ class EmailService:
         msg.attach(MIMEText(html_content, "html"))
 
         try:
-            await aiosmtplib.send(
-                msg,
-                hostname=smtp_host,
-                port=smtp_port,
-                username=smtp_user,
-                password=smtp_password,
-                start_tls=smtp_use_tls,
-            )
+            # Build connection kwargs — only include auth if credentials provided
+            send_kwargs = {
+                "hostname": smtp_host,
+                "port": smtp_port,
+                "start_tls": smtp_use_tls,
+            }
+            if smtp_user and smtp_password:
+                send_kwargs["username"] = smtp_user
+                send_kwargs["password"] = smtp_password
+
+            await aiosmtplib.send(msg, **send_kwargs)
             logger.info("Email sent successfully to %s via custom SMTP settings", to_email)
             return True
         except Exception as e:

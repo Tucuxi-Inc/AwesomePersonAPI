@@ -1039,7 +1039,9 @@ async def get_simple_interview_status(
     candidate, _ = await get_simple_candidate_by_token(token, db)
 
     progress = 0.0
-    if candidate.interview_session_id:
+    if candidate.interview_status == SimpleInterviewStatus.COMPLETED:
+        progress = 1.0
+    elif candidate.interview_session_id:
         session_data = _simple_sessions.get(str(candidate.interview_session_id))
         if session_data:
             state_data = session_data["state"]

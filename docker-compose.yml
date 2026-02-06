@@ -73,6 +73,14 @@ services:
         condition: service_healthy
     command: celery -A app.tasks.celery_app worker --loglevel=info
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: apapi-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: unless-stopped
+
   frontend:
     build:
       context: .

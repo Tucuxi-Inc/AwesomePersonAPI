@@ -11,10 +11,9 @@ class EmailSettingsUpdate(BaseModel):
 
     smtp_host: str = Field(..., min_length=1, max_length=255)
     smtp_port: int = Field(..., ge=1, le=65535)
-    smtp_user: str = Field(..., min_length=1, max_length=255)
+    smtp_user: str = Field("", max_length=255)
     smtp_password: Optional[str] = Field(
         None,
-        min_length=1,
         description="SMTP password. Only required on first setup or when changing.",
     )
     smtp_from_email: EmailStr

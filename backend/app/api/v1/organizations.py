@@ -7,6 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.dependencies import get_db, get_current_user, require_role
 from app.models import Organization, User
@@ -195,12 +196,8 @@ async def get_email_settings(
     # Get email settings from organization settings
     email_settings = (org.settings or {}).get("email", {})
 
-    # Check if configured
-    is_configured = bool(
-        email_settings.get("smtp_host")
-        and email_settings.get("smtp_user")
-        and email_settings.get("smtp_password_encrypted")
-    )
+    # Check if configured (only smtp_host is strictly required — user/password optional for local dev)
+    is_configured = bool(email_settings.get("smtp_host"))
 
     return EmailSettingsResponse(
         smtp_host=email_settings.get("smtp_host", ""),
@@ -266,16 +263,13 @@ async def update_email_settings(
     # Update organization settings
     org_settings["email"] = email_settings
     org.settings = org_settings
+    flag_modified(org, "settings")
 
     await db.commit()
     await db.refresh(org)
 
-    # Check if configured
-    is_configured = bool(
-        email_settings.get("smtp_host")
-        and email_settings.get("smtp_user")
-        and email_settings.get("smtp_password_encrypted")
-    )
+    # Check if configured (only smtp_host is strictly required — user/password optional for local dev)
+    is_configured = bool(email_settings.get("smtp_host"))
 
     return EmailSettingsResponse(
         smtp_host=email_settings["smtp_host"],
@@ -321,21 +315,17 @@ async def test_email_settings(
     # Get email settings
     email_settings = (org.settings or {}).get("email", {})
 
-    if not email_settings.get("smtp_password_encrypted"):
+    if not email_settings.get("smtp_host"):
         return TestEmailResponse(
             success=False,
             message="Email settings not configured",
             error_detail="Please save your SMTP settings first",
         )
 
-    # Decrypt password
-    smtp_password = decrypt_value(email_settings["smtp_password_encrypted"])
-    if not smtp_password:
-        return TestEmailResponse(
-            success=False,
-            message="Failed to decrypt SMTP password",
-            error_detail="The stored password could not be decrypted. Please re-enter your SMTP password.",
-        )
+    # Decrypt password (may be empty for unauthenticated SMTP like Mailpit)
+    smtp_password = ""
+    if email_settings.get("smtp_password_encrypted"):
+        smtp_password = decrypt_value(email_settings["smtp_password_encrypted"]) or ""
 
     # Create email service with org settings
     email_service = EmailService()
