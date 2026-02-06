@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current State (as of 2026-01-31)
+## Current State (as of 2026-02-05)
 
-**Last Session**: Implemented complete email system for interview invitations with admin SMTP configuration UI.
+**Last Session**: Expanded test suite from 56 to 146 tests (49% coverage), fixed 4 bugs, added Mailpit for local email testing.
 
 **What's Working**:
 - Full Platform assessment workflow
@@ -13,12 +13,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Admin UI for SMTP configuration (Settings → Email tab)
 - Per-organization encrypted SMTP credentials storage
 - PDF report generation and export
+- Mailpit local email testing (SMTP: 1025, Web UI: 8025)
+- Unauthenticated SMTP support (for local dev tools like Mailpit)
+
+**Bugs Fixed (2026-02-05)**:
+- SQLAlchemy JSONB mutation not persisting — added `flag_modified()` in organizations.py
+- Interview engine infinite reflection loop — reflection phase now correctly marks coverage
+- Completed interview progress returning wrong value — status endpoint returns 1.0 for completed
+- Unauthenticated SMTP rejected — email service now omits auth when credentials empty
 
 **What Needs Testing**:
 - Configure real SMTP credentials (e.g., Gmail app password) via Settings → Email tab
-- Send test email to verify configuration works
-- Send actual interview invitation and confirm candidate receives it
-- Complete end-to-end flow: invite → candidate interview → results
+- Send actual interview invitation via real SMTP and confirm candidate receives it
+- Complete end-to-end flow with real SMTP: invite → candidate interview → results
 
 ## Project Overview
 
@@ -51,6 +58,7 @@ Core principles: **Traceability** (every score links to evidence), **Objectivity
 | LLM Integration | Anthropic Claude API |
 | Task Queue | Celery + Redis |
 | Email | aiosmtplib (async SMTP) |
+| Email Testing | Mailpit (local SMTP capture) |
 | Containerization | Docker + Docker Compose |
 
 ## Project Structure
@@ -107,15 +115,26 @@ docker-compose logs -f celery  # Email task logs appear here
 
 ### Testing
 ```bash
-# Install pytest (if not in container)
-docker-compose exec backend pip install pytest pytest-asyncio pytest-cov
+# pytest, pytest-asyncio, and pytest-cov are included in the Docker image
 
 # Run tests
-docker-compose exec backend python -m pytest -v
+docker-compose exec backend python -m pytest tests/ -v
 
 # Run with coverage
-docker-compose exec backend python -m pytest --cov=app --cov-report=html
+docker-compose exec backend python -m pytest tests/ --cov=app --cov-report=term-missing
+
+# Run specific test file
+docker-compose exec backend python -m pytest tests/test_score_calibrator.py -v
 ```
+
+**Test suite**: 146 tests, ~49% code coverage. Test files:
+- `test_auth.py` — Password hashing and JWT tokens
+- `test_patterns.py` — Reasoning patterns, ProbeContext, pattern selection
+- `test_interview_engine.py` — Interview dataclasses, evidence weights, enums
+- `test_bug_fixes.py` — Regression tests for fixed bugs (JSONB, reflection, SMTP, progress)
+- `test_email_system.py` — Email service, Fernet encryption, schema validation
+- `test_interview_flow.py` — State serialization, decision routing, progress, evidence
+- `test_score_calibrator.py` — Weighted scoring, recommendations, composite scores
 
 ### Database
 ```bash
@@ -133,6 +152,8 @@ docker-compose exec backend python -m app.db.init_db
 - Frontend: http://localhost:3003
 - Backend API: http://localhost:8003
 - API Docs: http://localhost:8003/docs
+- Mailpit Web UI: http://localhost:8025 (local email testing)
+- Mailpit SMTP: localhost:1025 (no auth required)
 
 ### Simple Mode Routes (Frontend)
 - `/simple` - Dashboard with assessment list
