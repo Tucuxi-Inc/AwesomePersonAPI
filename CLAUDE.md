@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Current State (as of 2026-01-31)
+
+**Last Session**: Implemented complete email system for interview invitations with admin SMTP configuration UI.
+
+**What's Working**:
+- Full Platform assessment workflow
+- Simple Mode 7-step wizard (create assessment → send invites → view results → export PDF)
+- Email sending via SMTP with Celery background tasks
+- Admin UI for SMTP configuration (Settings → Email tab)
+- Per-organization encrypted SMTP credentials storage
+- PDF report generation and export
+
+**What Needs Testing**:
+- Configure real SMTP credentials (e.g., Gmail app password) via Settings → Email tab
+- Send test email to verify configuration works
+- Send actual interview invitation and confirm candidate receives it
+- Complete end-to-end flow: invite → candidate interview → results
+
 ## Project Overview
 
 The AP API (Awesome Person API) is a talent assessment platform with two primary workflows:
@@ -19,9 +37,9 @@ Core principles: **Traceability** (every score links to evidence), **Objectivity
 2. Review/edit requirements
 3. Add candidates (with optional resume upload)
 4. Select up to 5 traits to assess
-5. Send magic-link interview invitations
+5. Send magic-link interview invitations (emails sent via SMTP)
 6. View ranked results with scores and recommendations
-7. Export reports
+7. Export PDF reports
 
 ## Technology Stack
 
@@ -32,6 +50,7 @@ Core principles: **Traceability** (every score links to evidence), **Objectivity
 | Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui, Zustand |
 | LLM Integration | Anthropic Claude API |
 | Task Queue | Celery + Redis |
+| Email | aiosmtplib (async SMTP) |
 | Containerization | Docker + Docker Compose |
 
 ## Project Structure
@@ -42,13 +61,14 @@ ap-api/
 │   ├── alembic/versions/          # Database migrations
 │   ├── app/
 │   │   ├── api/v1/                # API route handlers
-│   │   ├── core/                  # Security, exceptions, logging
+│   │   ├── core/                  # Security, exceptions, encryption
 │   │   ├── db/                    # Database session, base models
 │   │   ├── models/                # SQLAlchemy models
 │   │   ├── schemas/               # Pydantic schemas
-│   │   ├── services/              # Business logic (interview_engine, trait_extractor, etc.)
+│   │   ├── services/              # Business logic services
 │   │   ├── data/                  # Trait definitions, default rubrics
-│   │   └── tasks/                 # Celery background jobs
+│   │   ├── tasks/                 # Celery background jobs (email, etc.)
+│   │   └── templates/email/       # Jinja2 email templates
 │   └── tests/
 ├── frontend/
 │   ├── src/
@@ -68,36 +88,45 @@ ap-api/
 cp .env.example .env
 # Edit .env with ANTHROPIC_API_KEY
 docker-compose up -d
-```
-
-### Backend
-```bash
-# Run all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f backend
-
-# Create migration
-docker-compose exec backend alembic revision --autogenerate -m "description"
-
-# Apply migrations
 docker-compose exec backend alembic upgrade head
-
-# Run tests
-docker-compose exec backend pytest
-
-# Run tests with coverage
-docker-compose exec backend pytest --cov=app --cov-report=html
-
-# Seed database (traits, rubrics, templates)
 docker-compose exec backend python -m app.db.init_db
 ```
 
-### Frontend
+### Running Services
 ```bash
-docker-compose exec frontend npm test
-docker-compose exec frontend npm run dev
+# Start all services
+docker-compose up -d
+
+# Rebuild after code changes
+docker-compose up -d --build backend celery frontend
+
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f celery  # Email task logs appear here
+```
+
+### Testing
+```bash
+# Install pytest (if not in container)
+docker-compose exec backend pip install pytest pytest-asyncio pytest-cov
+
+# Run tests
+docker-compose exec backend python -m pytest -v
+
+# Run with coverage
+docker-compose exec backend python -m pytest --cov=app --cov-report=html
+```
+
+### Database
+```bash
+# Apply migrations
+docker-compose exec backend alembic upgrade head
+
+# Create new migration
+docker-compose exec backend alembic revision --autogenerate -m "description"
+
+# Seed database
+docker-compose exec backend python -m app.db.init_db
 ```
 
 ### Access Points
@@ -111,43 +140,57 @@ docker-compose exec frontend npm run dev
 - `/simple/assessments/:id` - Assessment wizard (Steps 2-6)
 - `/simple/assessments/:id/results` - Results view with rankings
 - `/interview/:token` - Public interview page (magic link, no auth)
+- `/settings` - Settings page (Email tab for SMTP config - admin only)
 
 ### Test Credentials
 After running `docker-compose exec backend python -m app.db.init_db`:
 - **Admin User**: `admin@apapi.dev` / `changeme123`
 - **Test User**: `test@example.com` / `changeme123`
 
-### API Testing
-```bash
-# Get auth token
-TOKEN=$(curl -s -X POST http://localhost:8003/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@apapi.dev","password":"changeme123"}' | jq -r '.access_token')
+## Key Implementation Details
 
-# Example authenticated request
-curl -s http://localhost:8003/api/v1/traits \
-  -H "Authorization: Bearer $TOKEN" | jq .
+### Email System (NEW)
+
+The email system sends interview invitations via SMTP:
+
+**Files**:
+- `backend/app/services/email_service.py` - Async SMTP email sending
+- `backend/app/tasks/email_tasks.py` - Celery background task
+- `backend/app/templates/email/interview_invitation.html` - HTML template
+- `backend/app/core/encryption.py` - Fernet encryption for SMTP passwords
+- `backend/app/schemas/email_settings.py` - Email settings schemas
+- `backend/app/api/v1/organizations.py` - Email settings endpoints
+
+**Configuration Options**:
+1. **Admin UI** (preferred): Settings → Email tab - stores encrypted in database per-organization
+2. **Environment variables** (fallback): Configure in `.env` file
+
+**Flow**:
+```
+User clicks "Send Invite"
+    → API generates magic link token
+    → Checks org email settings (encrypted in Organization.settings)
+    → Queues Celery task with email details
+    → Returns immediately
+    → Celery worker renders template & sends via SMTP
 ```
 
-## Architecture Patterns
+**API Endpoints**:
+- `GET /organizations/{org_id}/email-settings` - Get settings (password masked)
+- `PUT /organizations/{org_id}/email-settings` - Update settings (encrypts password)
+- `POST /organizations/{org_id}/email-settings/test` - Send test email
 
 ### Core Services (backend/app/services/)
 
-- **InterviewEngine** (`interview_engine.py`): Main orchestrator for STAR+ methodology interviews. Manages session lifecycle, coordinates probe generation, processes responses, tracks progress, handles follow-ups/reflection/recursion.
-
-- **PatternAwareProbeGenerator** (`probe_generator.py`): Generates contextually intelligent probes using Universal Reasoning Patterns (URPs). Applies patterns like MC24 (assumption surfacing), MC35 (representation choice), IP7 (conflict exploration) based on conversation context.
-
-- **PatternAwareResponseAnalyzer** (`response_analyzer.py`): Analyzes candidate responses using URPs. Extracts evidence, classifies types (BEHAVIORAL/HYPOTHETICAL/SELF_REPORT/OBSERVED), assesses STAR completeness, detects omissions, recommends follow-ups.
-
-- **ResumeInformedProbeCustomizer** (`resume_customizer.py`): Customizes generic probes using resume details to make questions impossible to answer with rehearsed responses.
-
-- **ScoreCalibrator** (`score_calibrator.py`): Weights evidence by type (OBSERVED: 1.2, BEHAVIORAL: 1.0, HYPOTHETICAL: 0.5, SELF_REPORT: 0.3), matches to behavioral anchors, generates explanations, produces recommendations.
-
-- **LLMClient** (`llm_client.py`): Wrapper for Anthropic Claude API (Sonnet 4); always request structured JSON output for extraction/scoring tasks.
+- **InterviewEngine** (`interview_engine.py`): Main orchestrator for STAR+ methodology interviews
+- **PatternAwareProbeGenerator** (`probe_generator.py`): Generates contextually intelligent probes using URPs
+- **PatternAwareResponseAnalyzer** (`response_analyzer.py`): Analyzes candidate responses, extracts evidence
+- **ResumeInformedProbeCustomizer** (`resume_customizer.py`): Customizes probes using resume details
+- **ScoreCalibrator** (`score_calibrator.py`): Weights evidence, generates scores and recommendations
+- **EmailService** (`email_service.py`): Async SMTP email sending with template rendering
+- **PDFGenerator** (`pdf_generator.py`): Assessment report PDF generation
 
 ### Universal Reasoning Patterns (URPs)
-
-The system uses cognitive patterns for intelligent probe generation:
 
 | Pattern | Purpose | When Applied |
 |---------|---------|--------------|
@@ -160,24 +203,13 @@ The system uses cognitive patterns for intelligent probe generation:
 | IP11 | Trust Calibration | Self-report heavy evidence |
 | SP8 | Risk Identification | Resilience/adaptability traits |
 
-### Key Data Concepts
-
-- **24 Traits**: Organized into 6 categories (Cognitive, Interpersonal, Execution, Stability, Self-Management, Orientation). Defined in `ap_api_trait_taxonomy.md`.
-- **Trait Valence**: Same trait can be positive or negative depending on role context. Counter-indicators flag traits that predict failure in specific roles.
-- **Scoring Rubrics**: Research-based defaults or organization-specific. Each rubric item includes behavioral anchors for scores 1-5.
-
 ### Evidence-Based Scoring
 
-All scores require traceable behavioral evidence:
-```python
-Evidence(
-    source_type="BEHAVIORAL",  # BEHAVIORAL, HYPOTHETICAL, SELF_REPORT, OBSERVED
-    source_text="...",
-    trait_signals=[...],
-    star_components={"situation": True, "task": True, "action": True, "result": False},
-    confidence=0.8
-)
-```
+Evidence types weighted by reliability:
+- OBSERVED: 1.2x (demonstrated during interview)
+- BEHAVIORAL: 1.0x (specific past actions with details)
+- HYPOTHETICAL: 0.5x (what they would do)
+- SELF_REPORT: 0.3x (claims without backing)
 
 ### Interview Flow
 
@@ -189,38 +221,45 @@ Evidence(
 6. Move to next trait when evidence sufficient
 7. Generate calibrated scores with full explanations
 
-### LLM-Powered Interview Intelligence
+## Environment Variables
 
-The interview system uses Claude to:
-- **Extract Requirements**: Parse job descriptions to identify objective requirements (education, experience, skills)
-- **Generate Probes**: Create trait-specific behavioral questions using URPs, customized with job context and resume details
-- **Analyze Responses**: Evaluate candidate answers for STAR completeness, classify evidence types, detect omissions
-- **Generate Follow-ups**: Create contextually intelligent follow-up questions based on what was missing or unclear
-- **Calibrate Scores**: Weight evidence by type and match to behavioral anchors for each trait
-- **Generate Recommendations**: Produce STRONG_HIRE/HIRE/HOLD/NO_HIRE with rationale
+Required in `.env`:
+```bash
+# Database
+DB_USER=apapi
+DB_PASSWORD=apapi_secret
+DB_NAME=apapi
 
-The system uses job description and resume context throughout to make questions impossible to answer with rehearsed responses.
+# Security
+SECRET_KEY=your-secret-key-change-in-production-minimum-32-characters
+
+# Anthropic API
+ANTHROPIC_API_KEY=sk-ant-...
+
+# CORS
+CORS_ORIGINS=http://localhost:3003
+
+# Environment
+ENVIRONMENT=development
+
+# Email (optional - can configure via admin UI instead)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=noreply@example.com
+SMTP_FROM_NAME=AP API Assessment
+SMTP_USE_TLS=true
+FRONTEND_BASE_URL=http://localhost:3003
+```
 
 ## Domain Reference Documents
 
-Read these for domain context when implementing features:
 - `ap_api_interview_protocol.md` - STAR+ methodology, assessment patterns
 - `ap_api_trait_taxonomy.md` - 24 trait definitions with valence mappings
 - `ap_api_training_based_profiling.md` - Top performer profiling approach
 - `ap_api_system_architecture.md` - Technical design details
 - `ap_api_quick_reference.md` - Interviewer field guide
-
-## Environment Variables
-
-Required in `.env`:
-```
-ANTHROPIC_API_KEY=sk-ant-...
-SECRET_KEY=...
-DB_USER=apapi
-DB_PASSWORD=...
-DB_NAME=apapi
-CORS_ORIGINS=http://localhost:3000
-```
 
 ## Implementation Notes
 
@@ -228,3 +267,5 @@ CORS_ORIGINS=http://localhost:3000
 - Counter-indicator flags should override positive overall scores when present
 - Interview transcripts store both raw exchanges and extracted evidence/signals
 - Assessment reports include: trait scores with explanations, composite score, recommendation (STRONG_HIRE/HIRE/HOLD/NO_HIRE), counter-indicator flags
+- SMTP passwords are encrypted with Fernet before storing in database
+- Email tasks run in Celery for non-blocking operation

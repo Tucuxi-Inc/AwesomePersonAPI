@@ -24,6 +24,8 @@ The AP API (Awesome Person API) is a talent assessment platform with two primary
 | Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui, Zustand |
 | LLM Integration | Anthropic Claude API (Sonnet 4 / Opus 4.5) |
 | Task Queue | Celery + Redis |
+| Email | aiosmtplib (async SMTP) |
+| Encryption | Fernet (AES-128) for sensitive data |
 | Containerization | Docker + Docker Compose |
 
 ## Quick Start
@@ -73,19 +75,20 @@ ap-api/
 │   ├── alembic/versions/          # Database migrations
 │   ├── app/
 │   │   ├── api/v1/                # API route handlers
-│   │   ├── core/                  # Security, exceptions, logging
+│   │   ├── core/                  # Security, exceptions, encryption
 │   │   ├── db/                    # Database session, base models
 │   │   ├── models/                # SQLAlchemy models
 │   │   ├── schemas/               # Pydantic schemas
 │   │   ├── services/              # Business logic services
 │   │   ├── data/                  # Trait definitions, default rubrics
-│   │   └── tasks/                 # Celery background jobs
+│   │   ├── tasks/                 # Celery background jobs (email, etc.)
+│   │   └── templates/email/       # Jinja2 email templates
 │   └── tests/
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                   # API client
 │   │   ├── components/            # React components
-│   │   ├── pages/                 # Page components
+│   │   ├── pages/                 # Page components (incl. Settings)
 │   │   ├── hooks/                 # Custom React hooks
 │   │   ├── store/                 # Zustand stores
 │   │   └── types/                 # TypeScript types
@@ -370,6 +373,11 @@ Content-Type: application/json
 ```http
 POST /simple/assessments/{assessment_id}/candidates/{candidate_id}/send-invite
 Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "custom_message": "We're excited to learn more about you!"  // optional
+}
 ```
 
 **Response** (200):
@@ -377,9 +385,12 @@ Authorization: Bearer <token>
 {
   "candidate_id": "uuid",
   "magic_link": "http://localhost:3003/interview/abc123xyz...",
-  "expires_at": "2026-02-05T18:00:00Z"
+  "expires_at": "2026-02-05T18:00:00Z",
+  "email_queued": true
 }
 ```
+
+*Note: Email is sent via background task. Configure SMTP in Settings → Email or via environment variables.*
 
 #### Get Results (Step 6)
 ```http
@@ -967,6 +978,73 @@ Future webhook events:
 - `assessment.generated`
 - `candidate.screened`
 
+---
+
+### Email Settings (Admin)
+
+Configure SMTP settings per-organization for sending interview invitations. SMTP passwords are encrypted at rest.
+
+#### Get Email Settings
+```http
+GET /organizations/{org_id}/email-settings
+Authorization: Bearer <token>
+```
+
+**Response** (200):
+```json
+{
+  "smtp_host": "smtp.gmail.com",
+  "smtp_port": 587,
+  "smtp_user": "user@example.com",
+  "smtp_password_set": true,
+  "smtp_from_email": "noreply@example.com",
+  "smtp_from_name": "Company Name",
+  "smtp_use_tls": true,
+  "configured_at": "2026-01-31T12:00:00Z",
+  "configured_by": "user-uuid"
+}
+```
+
+#### Update Email Settings
+```http
+PUT /organizations/{org_id}/email-settings
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "smtp_host": "smtp.gmail.com",
+  "smtp_port": 587,
+  "smtp_user": "user@example.com",
+  "smtp_password": "app-password-here",
+  "smtp_from_email": "noreply@example.com",
+  "smtp_from_name": "Company Name",
+  "smtp_use_tls": true
+}
+```
+
+*Note: `smtp_password` is encrypted with Fernet before storage and never returned in responses.*
+
+#### Send Test Email
+```http
+POST /organizations/{org_id}/email-settings/test
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "recipient_email": "test@example.com"
+}
+```
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "message": "Test email sent successfully"
+}
+```
+
+---
+
 ## Core Services
 
 ### Interview Engine (`app/services/interview_engine.py`)
@@ -995,6 +1073,14 @@ Generates final assessments:
 - Matches to behavioral anchors
 - Identifies counter-indicators
 - Generates human-readable explanations
+
+### Email Service (`app/services/email_service.py`)
+Handles interview invitation emails:
+- Async SMTP sending via aiosmtplib
+- Jinja2 template rendering
+- Supports per-organization SMTP settings
+- Falls back to environment variables if org settings not configured
+- Background execution via Celery tasks
 
 ## Development
 
@@ -1055,7 +1141,27 @@ CORS_ORIGINS=http://localhost:3003
 
 # Environment
 ENVIRONMENT=development
+
+# Frontend URL (for magic links in emails)
+FRONTEND_BASE_URL=http://localhost:3003
 ```
+
+### Email Configuration (Optional)
+
+Email can be configured via the Admin UI (Settings → Email) or environment variables. The Admin UI takes precedence if configured.
+
+```bash
+# SMTP Settings (fallback if not configured in Admin UI)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_FROM_NAME=AP API Assessment
+SMTP_USE_TLS=true
+```
+
+**Gmail Setup**: Use an [App Password](https://support.google.com/accounts/answer/185833) (requires 2FA enabled) instead of your regular password.
 
 ## Contributing
 
@@ -1070,7 +1176,9 @@ Proprietary - Tucuxi Inc.
 
 ## Documentation
 
-Additional domain documentation in the repository root:
+Additional documentation in the repository root:
+- `CLAUDE.md` - AI assistant instructions and project context
+- `HANDOFF.md` - Project handoff document with current state and testing checklist
 - `ap_api_interview_protocol.md` - STAR+ methodology details
 - `ap_api_trait_taxonomy.md` - 24 trait definitions
 - `ap_api_reasoning_pattern_integration.md` - URP integration guide
