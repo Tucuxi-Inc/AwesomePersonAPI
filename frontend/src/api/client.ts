@@ -111,6 +111,35 @@ export const api = {
       recipient_email: recipientEmail,
     }),
 
+  // LLM Settings (Admin)
+  getLLMProviders: () =>
+    client.get('/organizations/llm-providers'),
+
+  fetchLLMModels: (providerId: string, apiKey?: string, baseUrl?: string) =>
+    client.post(`/organizations/llm-providers/${providerId}/models`, null, {
+      params: {
+        ...(apiKey ? { api_key: apiKey } : {}),
+        ...(baseUrl ? { base_url: baseUrl } : {}),
+      },
+    }),
+
+  getLLMSettings: (orgId: string) =>
+    client.get(`/organizations/${orgId}/llm-settings`),
+
+  updateLLMSettings: (orgId: string, data: {
+    provider: string;
+    model: string;
+    api_key?: string;
+    base_url?: string;
+  }) => client.put(`/organizations/${orgId}/llm-settings`, data),
+
+  testLLMSettings: (orgId: string, data: {
+    provider: string;
+    model: string;
+    api_key?: string;
+    base_url?: string;
+  }) => client.post(`/organizations/${orgId}/llm-settings/test`, data),
+
   // Users
   getUsers: (params?: { skip?: number; limit?: number; search?: string; organization_id?: string }) =>
     client.get('/users', { params }),

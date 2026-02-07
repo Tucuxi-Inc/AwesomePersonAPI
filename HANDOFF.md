@@ -1,7 +1,7 @@
 # Project Handoff Document
 
-**Date**: 2026-02-05
-**Last Updated By**: Claude Code (Opus 4.5)
+**Date**: 2026-02-06
+**Last Updated By**: Claude Code (Opus 4.6)
 **Project**: AP API (Awesome Person API)
 
 ---
@@ -12,7 +12,7 @@ The AP API is a talent assessment platform that conducts AI-powered behavioral i
 1. **Full Platform** - Enterprise workflow with jobs, candidates, role profiles, custom rubrics
 2. **Simple Mode** - Streamlined 7-step wizard for quick assessments
 
-**Recent Implementation (2026-01-31)**: Complete email system for interview invitations with admin-configurable SMTP settings.
+**Recent Implementation (2026-02-06)**: Multi-provider LLM settings with support for Anthropic, OpenAI, Google AI, Groq, OpenRouter, and Ollama (local). Configuration via admin UI (Settings → AI tab) or .env file.
 
 ---
 
@@ -32,6 +32,9 @@ The AP API is a talent assessment platform that conducts AI-powered behavioral i
 | PDF report export | ✅ Complete | Professional assessment reports |
 | Email system | ✅ Complete | Needs SMTP configuration testing |
 | Admin SMTP configuration | ✅ Complete | Settings → Email tab (admin only) |
+| Multi-provider LLM support | ✅ Complete | Anthropic, OpenAI, Google AI, Groq, OpenRouter, Ollama |
+| Admin AI provider config | ✅ Complete | Settings → AI tab (admin only) |
+| Ollama local inference | ✅ Complete | Docker service on port 11434 |
 
 ### What Needs Testing
 
@@ -83,10 +86,11 @@ The AP API is a talent assessment platform that conducts AI-powered behavioral i
 └──────────────────┴──────────────────┴───────────────────────────┘
                               │
                               ▼
-                    ┌─────────────────┐
-                    │  Anthropic API  │
-                    │  (Claude LLM)   │
-                    └─────────────────┘
+               ┌──────────────────────────────┐
+               │      LLM Provider Layer      │
+               │  Anthropic │ OpenAI │ Google  │
+               │  Groq │ OpenRouter │ Ollama  │
+               └──────────────────────────────┘
 ```
 
 ### Key Data Flow: Interview Invitation
@@ -125,14 +129,13 @@ The AP API is a talent assessment platform that conducts AI-powered behavioral i
 backend/app/
 ├── api/v1/
 │   ├── simple.py              # Simple Mode API (main assessment workflow)
-│   ├── organizations.py       # Email settings endpoints (GET/PUT/POST test)
+│   ├── organizations.py       # Email + LLM settings endpoints
 │   ├── interviews.py          # Full platform interviews
 │   └── auth.py                # Authentication endpoints
-├── core/
-│   ├── encryption.py          # Fernet encryption for SMTP passwords
-│   └── security.py            # JWT handling, password hashing
 ├── services/
 │   ├── email_service.py       # Async SMTP email sending
+│   ├── llm_client.py          # Multi-provider LLM client (config resolution)
+│   ├── llm_providers.py       # Provider abstraction (Anthropic, OpenAI, Google, etc.)
 │   ├── interview_engine.py    # STAR+ interview orchestration
 │   ├── probe_generator.py     # AI probe generation with URPs
 │   ├── response_analyzer.py   # AI response analysis
@@ -140,8 +143,13 @@ backend/app/
 ├── tasks/
 │   ├── celery_app.py          # Celery configuration
 │   └── email_tasks.py         # Email background tasks
+├── core/
+│   ├── llm_context.py         # Per-request LLM config via contextvars
+│   ├── encryption.py          # Fernet encryption for SMTP/LLM passwords
+│   └── security.py            # JWT handling, password hashing
 ├── schemas/
 │   ├── email_settings.py      # Email config Pydantic schemas
+│   ├── llm_settings.py        # LLM provider Pydantic schemas
 │   └── simple.py              # Simple Mode schemas
 ├── templates/email/
 │   └── interview_invitation.html  # Email HTML template
@@ -154,7 +162,7 @@ backend/app/
 ```
 frontend/src/
 ├── pages/
-│   ├── Settings.tsx           # Settings page with Email tab (admin)
+│   ├── Settings.tsx           # Settings page with Email + AI tabs (admin)
 │   ├── SimpleDashboard.tsx    # Simple Mode dashboard
 │   ├── SimpleAssessment.tsx   # Assessment wizard
 │   └── PublicInterview.tsx    # Public interview page (magic link)
@@ -342,6 +350,7 @@ The following features could be added but are not currently implemented:
 
 - **API Documentation**: http://localhost:8003/docs (Swagger UI)
 - **Frontend**: http://localhost:3003
+- **Ollama API**: http://localhost:11434 (local LLM inference)
 - **Domain Docs**: See `ap_api_*.md` files in project root
 - **CLAUDE.md**: Instructions for Claude Code AI assistant
 
@@ -357,4 +366,5 @@ When picking up development:
 4. [ ] Login as admin: `admin@apapi.dev` / `changeme123`
 5. [ ] Go to Settings → Email to configure SMTP
 6. [ ] Send a test email to verify configuration
-7. [ ] Create a Simple Mode assessment and test the full flow
+7. [ ] Go to Settings → AI to configure LLM provider (optional, defaults to Anthropic)
+8. [ ] Create a Simple Mode assessment and test the full flow

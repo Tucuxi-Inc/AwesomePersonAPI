@@ -15,11 +15,13 @@ import {
   Building2,
   Key,
   Mail,
+  Brain,
   Loader2,
   CheckCircle,
   AlertTriangle,
   Send,
 } from 'lucide-react';
+import LLMSettingsTab from '@/components/settings/LLMSettingsTab';
 
 export default function Settings() {
   const { user, refreshUser } = useAuth();
@@ -295,6 +297,12 @@ export default function Settings() {
             <TabsTrigger value="organization" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Organization
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="ai" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              AI
             </TabsTrigger>
           )}
           {isAdmin && (
@@ -666,6 +674,13 @@ export default function Settings() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+        )}
+
+        {/* AI Provider Tab (Admin only) */}
+        {isAdmin && user?.organization_id && (
+          <TabsContent value="ai">
+            <LLMSettingsTab organizationId={user.organization_id} />
           </TabsContent>
         )}
 

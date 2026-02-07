@@ -1108,3 +1108,29 @@ export interface TestEmailResponse {
   message: string;
   error_detail: string | null;
 }
+
+// LLM Settings Types
+export interface LLMSettings {
+  provider: string;
+  model: string;
+  api_key_set: boolean;
+  base_url: string | null;
+  is_configured: boolean;
+  configured_at: string | null;
+  configured_by: string | null;
+  source: string; // "database", "env", "default"
+}
+
+export interface LLMProvider {
+  id: string;
+  name: string;
+  models: string[];
+  requires_api_key: boolean;
+  default_base_url: string | null;
+}
+
+export interface LLMTestResult {
+  success: boolean;
+  message: string;
+  response_preview: string | null;
+}

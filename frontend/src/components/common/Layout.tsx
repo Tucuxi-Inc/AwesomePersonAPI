@@ -41,7 +41,10 @@ export function Layout() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold">AP</span>
               </div>
-              <span className="text-xl font-bold">AP API</span>
+              <div>
+                <span className="text-xl font-bold block leading-tight">AP APP</span>
+                <span className="text-[10px] text-muted-foreground leading-tight">Awesome Person App</span>
+              </div>
             </Link>
           </div>
 

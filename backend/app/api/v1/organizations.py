@@ -23,9 +23,80 @@ from app.schemas.email_settings import (
     TestEmailRequest,
     TestEmailResponse,
 )
+from app.schemas.llm_settings import (
+    LLMSettingsUpdate,
+    LLMSettingsResponse,
+    LLMProviderInfo,
+    LLMTestRequest,
+    LLMTestResult,
+)
 from app.core.encryption import encrypt_value, decrypt_value
 
 router = APIRouter()
+
+
+# --- LLM Provider List (must be before /{org_id} routes) ---
+
+
+@router.get("/llm-providers", response_model=list[LLMProviderInfo])
+async def list_llm_providers(
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> list[LLMProviderInfo]:
+    """List available LLM providers with their model catalogs (admin only)."""
+    from app.services.llm_providers import get_provider_list
+
+    providers = get_provider_list()
+    return [LLMProviderInfo(**p) for p in providers]
+
+
+@router.post("/llm-providers/{provider_id}/models", response_model=list[str])
+async def fetch_provider_models(
+    provider_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+) -> list[str]:
+    """Fetch available models from a provider's API (admin only).
+
+    For cloud providers, uses the provided API key, or falls back to org settings / .env.
+    For Ollama, queries the local instance.
+    """
+    from app.services.llm_providers import fetch_models, PROVIDER_CONFIGS
+    from app.config import settings as app_settings
+    from app.services.llm_client import _PROVIDER_ENV_KEYS
+
+    if provider_id not in PROVIDER_CONFIGS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown provider: {provider_id}",
+        )
+
+    # Resolve API key: provided > org DB > .env
+    effective_key = api_key or ""
+    if not effective_key and current_user.organization_id:
+        result = await db.execute(
+            select(Organization).where(Organization.id == current_user.organization_id)
+        )
+        org = result.scalar_one_or_none()
+        if org and org.settings:
+            llm_settings = org.settings.get("llm", {})
+            if llm_settings.get("provider") == provider_id:
+                encrypted = llm_settings.get("api_key_encrypted")
+                if encrypted:
+                    effective_key = decrypt_value(encrypted) or ""
+
+    if not effective_key:
+        env_key_attr = _PROVIDER_ENV_KEYS.get(provider_id)
+        if env_key_attr:
+            effective_key = getattr(app_settings, env_key_attr, "")
+
+    effective_url = base_url
+    if not effective_url and provider_id == "ollama":
+        effective_url = app_settings.OLLAMA_BASE_URL
+
+    models = fetch_models(provider_id, effective_key, effective_url)
+    return models
 
 
 @router.get("", response_model=OrganizationList)
@@ -390,4 +461,221 @@ If you received this email, your SMTP settings are configured correctly.
             success=False,
             message="Failed to send test email",
             error_detail=str(e),
+        )
+
+
+# --- LLM Settings Endpoints ---
+
+
+@router.get("/{org_id}/llm-settings", response_model=LLMSettingsResponse)
+async def get_llm_settings(
+    org_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> LLMSettingsResponse:
+    """Get organization LLM/AI provider settings (admin only)."""
+    from app.config import settings as app_settings
+
+    # Get organization
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    # Check access
+    if not current_user.is_superuser and current_user.organization_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this organization's settings",
+        )
+
+    # Check for org-specific DB settings first
+    llm_settings = (org.settings or {}).get("llm", {})
+
+    if llm_settings.get("provider"):
+        return LLMSettingsResponse(
+            provider=llm_settings["provider"],
+            model=llm_settings.get("model", ""),
+            api_key_set=bool(llm_settings.get("api_key_encrypted")),
+            base_url=llm_settings.get("base_url"),
+            is_configured=True,
+            configured_at=llm_settings.get("configured_at"),
+            configured_by=llm_settings.get("configured_by"),
+            source="database",
+        )
+
+    # Fall back to .env settings
+    env_provider = app_settings.LLM_PROVIDER or "anthropic"
+    env_model = app_settings.LLM_MODEL or ""
+
+    # Check if the relevant API key is set in .env
+    from app.services.llm_client import _PROVIDER_ENV_KEYS
+    env_key_attr = _PROVIDER_ENV_KEYS.get(env_provider)
+    env_key_set = bool(getattr(app_settings, env_key_attr, "")) if env_key_attr else (env_provider == "ollama")
+
+    return LLMSettingsResponse(
+        provider=env_provider,
+        model=env_model,
+        api_key_set=env_key_set,
+        base_url=app_settings.OLLAMA_BASE_URL if env_provider == "ollama" else None,
+        is_configured=env_key_set,
+        source="env" if env_key_set else "default",
+    )
+
+
+@router.put("/{org_id}/llm-settings", response_model=LLMSettingsResponse)
+async def update_llm_settings(
+    org_id: uuid.UUID,
+    settings_in: LLMSettingsUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> LLMSettingsResponse:
+    """Update organization LLM/AI provider settings (admin only)."""
+    from app.services.llm_providers import PROVIDER_CONFIGS
+
+    # Validate provider
+    if settings_in.provider not in PROVIDER_CONFIGS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown provider: {settings_in.provider}",
+        )
+
+    # Get organization
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    # Check access
+    if not current_user.is_superuser and current_user.organization_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this organization's settings",
+        )
+
+    # Get existing settings or initialize
+    org_settings = org.settings or {}
+    existing_llm = org_settings.get("llm", {})
+
+    # Build new LLM settings
+    llm_settings = {
+        "provider": settings_in.provider,
+        "model": settings_in.model,
+        "base_url": settings_in.base_url,
+        "configured_at": datetime.now(timezone.utc).isoformat(),
+        "configured_by": str(current_user.id),
+    }
+
+    # Handle API key: encrypt if provided, keep existing if not
+    if settings_in.api_key:
+        llm_settings["api_key_encrypted"] = encrypt_value(settings_in.api_key)
+    elif existing_llm.get("api_key_encrypted"):
+        llm_settings["api_key_encrypted"] = existing_llm["api_key_encrypted"]
+
+    # Update organization settings
+    org_settings["llm"] = llm_settings
+    org.settings = org_settings
+    flag_modified(org, "settings")
+
+    await db.commit()
+    await db.refresh(org)
+
+    return LLMSettingsResponse(
+        provider=llm_settings["provider"],
+        model=llm_settings["model"],
+        api_key_set=bool(llm_settings.get("api_key_encrypted")),
+        base_url=llm_settings.get("base_url"),
+        is_configured=True,
+        configured_at=llm_settings["configured_at"],
+        configured_by=llm_settings["configured_by"],
+        source="database",
+    )
+
+
+@router.post("/{org_id}/llm-settings/test", response_model=LLMTestResult)
+async def test_llm_settings(
+    org_id: uuid.UUID,
+    test_request: LLMTestRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+) -> LLMTestResult:
+    """Test LLM connection with the given provider settings (admin only)."""
+    from app.services.llm_providers import create_provider, PROVIDER_CONFIGS
+
+    # Check access
+    if not current_user.is_superuser and current_user.organization_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized",
+        )
+
+    # Validate provider
+    if test_request.provider not in PROVIDER_CONFIGS:
+        return LLMTestResult(
+            success=False,
+            message=f"Unknown provider: {test_request.provider}",
+        )
+
+    # Resolve API key: use provided key, or try org DB key, or try .env key
+    api_key = test_request.api_key
+    if not api_key:
+        # Try org settings
+        result = await db.execute(select(Organization).where(Organization.id == org_id))
+        org = result.scalar_one_or_none()
+        if org and org.settings:
+            llm_settings = org.settings.get("llm", {})
+            encrypted = llm_settings.get("api_key_encrypted")
+            if encrypted:
+                api_key = decrypt_value(encrypted) or ""
+
+    if not api_key:
+        # Try .env
+        from app.config import settings as app_settings
+        from app.services.llm_client import _PROVIDER_ENV_KEYS
+        env_key_attr = _PROVIDER_ENV_KEYS.get(test_request.provider)
+        if env_key_attr:
+            api_key = getattr(app_settings, env_key_attr, "")
+
+    # Ollama doesn't need an API key
+    provider_config = PROVIDER_CONFIGS[test_request.provider]
+    if provider_config["requires_api_key"] and not api_key:
+        return LLMTestResult(
+            success=False,
+            message=f"No API key configured for {provider_config['name']}. Enter a key or set it in .env.",
+        )
+
+    try:
+        provider = create_provider(
+            provider_name=test_request.provider,
+            api_key=api_key or "",
+            model=test_request.model,
+            base_url=test_request.base_url,
+        )
+
+        response = await provider.complete(
+            prompt="Say 'Hello from AP API!' in one short sentence.",
+            max_tokens=50,
+            temperature=0.3,
+        )
+
+        preview = str(response)[:150] if response else ""
+
+        return LLMTestResult(
+            success=True,
+            message=f"Successfully connected to {provider_config['name']}",
+            response_preview=preview,
+        )
+
+    except Exception as e:
+        return LLMTestResult(
+            success=False,
+            message=f"Connection failed: {str(e)[:200]}",
         )

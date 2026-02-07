@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current State (as of 2026-02-05)
+## Current State (as of 2026-02-06)
 
-**Last Session**: Expanded test suite from 56 to 146 tests (49% coverage), fixed 4 bugs, added Mailpit for local email testing.
+**Last Session**: Added multi-provider LLM settings with support for Anthropic, OpenAI, Google AI, Groq, OpenRouter, and Ollama (local). Configuration via admin UI (Settings → AI tab) or .env file.
 
 **What's Working**:
 - Full Platform assessment workflow
@@ -15,6 +15,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - PDF report generation and export
 - Mailpit local email testing (SMTP: 1025, Web UI: 8025)
 - Unauthenticated SMTP support (for local dev tools like Mailpit)
+- Multi-provider LLM support (Anthropic, OpenAI, Google AI, Groq, OpenRouter, Ollama)
+- Admin UI for AI provider configuration (Settings → AI tab)
+- Per-organization encrypted LLM API key storage
+- Dynamic model list fetching from each provider's API
+- Ollama integration for local/self-hosted LLM inference
 
 **Bugs Fixed (2026-02-05)**:
 - SQLAlchemy JSONB mutation not persisting — added `flag_modified()` in organizations.py
@@ -55,7 +60,7 @@ Core principles: **Traceability** (every score links to evidence), **Objectivity
 | Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic |
 | Database | PostgreSQL 15+ (JSONB for flexible schemas) |
 | Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui, Zustand |
-| LLM Integration | Anthropic Claude API |
+| LLM Integration | Multi-provider: Anthropic, OpenAI, Google AI, Groq, OpenRouter, Ollama |
 | Task Queue | Celery + Redis |
 | Email | aiosmtplib (async SMTP) |
 | Email Testing | Mailpit (local SMTP capture) |
@@ -154,6 +159,7 @@ docker-compose exec backend python -m app.db.init_db
 - API Docs: http://localhost:8003/docs
 - Mailpit Web UI: http://localhost:8025 (local email testing)
 - Mailpit SMTP: localhost:1025 (no auth required)
+- Ollama API: http://localhost:11434 (local LLM inference)
 
 ### Simple Mode Routes (Frontend)
 - `/simple` - Dashboard with assessment list
@@ -161,7 +167,7 @@ docker-compose exec backend python -m app.db.init_db
 - `/simple/assessments/:id` - Assessment wizard (Steps 2-6)
 - `/simple/assessments/:id/results` - Results view with rankings
 - `/interview/:token` - Public interview page (magic link, no auth)
-- `/settings` - Settings page (Email tab for SMTP config - admin only)
+- `/settings` - Settings page (Email tab for SMTP config, AI tab for LLM provider - admin only)
 
 ### Test Credentials
 After running `docker-compose exec backend python -m app.db.init_db`:
@@ -200,6 +206,40 @@ User clicks "Send Invite"
 - `GET /organizations/{org_id}/email-settings` - Get settings (password masked)
 - `PUT /organizations/{org_id}/email-settings` - Update settings (encrypts password)
 - `POST /organizations/{org_id}/email-settings/test` - Send test email
+
+### LLM Provider System
+
+Multi-provider LLM abstraction supporting 6 providers with a unified interface:
+
+**Files**:
+- `backend/app/services/llm_providers.py` - Provider abstraction layer (AnthropicProvider, OpenAICompatibleProvider, GoogleProvider)
+- `backend/app/services/llm_client.py` - LLM client with config resolution (contextvar → .env → default)
+- `backend/app/core/llm_context.py` - Per-request LLM config via contextvars middleware
+- `backend/app/schemas/llm_settings.py` - LLM settings Pydantic schemas
+- `backend/app/api/v1/organizations.py` - LLM settings endpoints
+- `frontend/src/components/settings/LLMSettingsTab.tsx` - AI provider settings UI
+
+**Supported Providers**:
+| Provider | API Type | Key Required | Notes |
+|----------|----------|-------------|-------|
+| Anthropic | Native | Yes | Default provider |
+| OpenAI | Native | Yes | GPT models |
+| Google AI | Native | Yes | Gemini models |
+| Groq | OpenAI-compatible | Yes | Fast inference |
+| OpenRouter | OpenAI-compatible | Yes | Multi-model gateway |
+| Ollama | OpenAI-compatible | No | Local/self-hosted |
+
+**Configuration Resolution Order**:
+1. Per-organization DB settings (encrypted API key in Organization.settings["llm"])
+2. Environment variables (LLM_PROVIDER, LLM_MODEL, provider-specific API keys)
+3. Hardcoded default: Anthropic with ANTHROPIC_API_KEY
+
+**API Endpoints**:
+- `GET /organizations/llm-providers` - List available providers and models
+- `POST /organizations/llm-providers/{provider_id}/models` - Fetch models for a provider (with API key)
+- `GET /organizations/{org_id}/llm-settings` - Get current LLM settings (key masked)
+- `PUT /organizations/{org_id}/llm-settings` - Update LLM settings (encrypts API key)
+- `POST /organizations/{org_id}/llm-settings/test` - Test LLM connection
 
 ### Core Services (backend/app/services/)
 
@@ -254,8 +294,15 @@ DB_NAME=apapi
 # Security
 SECRET_KEY=your-secret-key-change-in-production-minimum-32-characters
 
-# Anthropic API
-ANTHROPIC_API_KEY=sk-ant-...
+# LLM Provider (default: anthropic)
+LLM_PROVIDER=anthropic          # anthropic, openai, google, groq, openrouter, ollama
+LLM_MODEL=                      # Empty = use provider default
+ANTHROPIC_API_KEY=sk-ant-...    # Required if using Anthropic (default)
+OPENAI_API_KEY=                 # Required if using OpenAI
+GOOGLE_API_KEY=                 # Required if using Google AI
+GROQ_API_KEY=                   # Required if using Groq
+OPENROUTER_API_KEY=             # Required if using OpenRouter
+OLLAMA_BASE_URL=http://ollama:11434  # Ollama instance URL (no key needed)
 
 # CORS
 CORS_ORIGINS=http://localhost:3003
@@ -290,3 +337,6 @@ FRONTEND_BASE_URL=http://localhost:3003
 - Assessment reports include: trait scores with explanations, composite score, recommendation (STRONG_HIRE/HIRE/HOLD/NO_HIRE), counter-indicator flags
 - SMTP passwords are encrypted with Fernet before storing in database
 - Email tasks run in Celery for non-blocking operation
+- LLM API keys are encrypted with Fernet before storing in Organization.settings["llm"]
+- LLM provider resolves per-request via contextvars: org DB settings → .env → Anthropic default
+- Ollama runs as a Docker service; models must be pulled separately (`docker-compose exec ollama ollama pull <model>`)

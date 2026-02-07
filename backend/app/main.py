@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.core.exceptions import APAPIException
 from app.core.logging import setup_logging
+from app.core.llm_context import LLMContextMiddleware
 from app.api.v1 import router as api_v1_router
 
 
@@ -38,6 +39,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# LLM context middleware (sets per-request LLM provider config)
+app.add_middleware(LLMContextMiddleware)
 
 
 # Exception handlers

@@ -36,8 +36,15 @@ class Settings(BaseSettings):
         """Parse CORS origins from comma-separated string."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
-    # Anthropic
+    # LLM Provider Configuration
     ANTHROPIC_API_KEY: str = ""
+    LLM_PROVIDER: str = "anthropic"  # anthropic, openai, google, groq, openrouter, ollama
+    LLM_MODEL: str = ""  # Empty = use provider default
+    OPENAI_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
+    OLLAMA_BASE_URL: str = "http://ollama:11434"
 
     # File Storage
     FILE_UPLOAD_DIR: str = "./uploads"

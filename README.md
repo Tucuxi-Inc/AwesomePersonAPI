@@ -22,7 +22,7 @@ The AP API (Awesome Person API) is a talent assessment platform with two primary
 | Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic |
 | Database | PostgreSQL 15+ (JSONB for flexible schemas) |
 | Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui, Zustand |
-| LLM Integration | Anthropic Claude API (Sonnet 4 / Opus 4.5) |
+| LLM Integration | Multi-provider: Anthropic, OpenAI, Google AI, Groq, OpenRouter, Ollama |
 | Task Queue | Celery + Redis |
 | Email | aiosmtplib (async SMTP) |
 | Encryption | Fernet (AES-128) for sensitive data |
@@ -66,6 +66,7 @@ docker-compose exec backend pytest -v
 - **Frontend**: http://localhost:3003
 - **Backend API**: http://localhost:8003
 - **API Documentation**: http://localhost:8003/docs
+- **Ollama API**: http://localhost:11434 (local LLM inference)
 
 ## Project Structure
 
@@ -1162,6 +1163,62 @@ SMTP_USE_TLS=true
 ```
 
 **Gmail Setup**: Use an [App Password](https://support.google.com/accounts/answer/185833) (requires 2FA enabled) instead of your regular password.
+
+### AI Provider Configuration
+
+The platform supports multiple LLM providers. You can configure the provider via the **Admin UI** or **environment variables**.
+
+**Method 1: Admin UI** (recommended, per-organization)
+
+1. Login as admin (`admin@apapi.dev` / `changeme123`)
+2. Go to **Settings → AI** tab
+3. Select a provider from the dropdown
+4. Enter your API key (encrypted at rest with Fernet)
+5. Select a model (fetched dynamically from the provider's API)
+6. Click "Test Connection" to verify, then "Save Settings"
+
+Admin UI settings are stored per-organization and take precedence over environment variables.
+
+**Method 2: Environment Variables** (global fallback)
+
+Set the provider and its API key in `.env`:
+
+```bash
+# Provider selection
+LLM_PROVIDER=anthropic          # anthropic, openai, google, groq, openrouter, ollama
+LLM_MODEL=                      # Empty = use provider default
+```
+
+Provider-specific API keys (only the key for your chosen provider is required):
+
+```bash
+# Anthropic (default)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Google AI (Gemini)
+GOOGLE_API_KEY=AIza...
+
+# Groq
+GROQ_API_KEY=gsk_...
+
+# OpenRouter
+OPENROUTER_API_KEY=sk-or-...
+
+# Ollama (local, no API key needed)
+OLLAMA_BASE_URL=http://ollama:11434
+```
+
+**Ollama (Local LLM)**: Ollama runs as a Docker service automatically. Pull models before use:
+
+```bash
+docker-compose exec ollama ollama pull llama3.2
+docker-compose exec ollama ollama pull mistral
+```
+
+**Configuration Resolution Order**: Per-organization DB settings (admin UI) → Environment variables → Anthropic default.
 
 ## Contributing
 
