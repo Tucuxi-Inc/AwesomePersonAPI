@@ -9,17 +9,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **What's Working**:
 - Full Platform assessment workflow
 - Simple Mode 7-step wizard (create assessment → send invites → view results → export PDF)
-- Email sending via SMTP with Celery background tasks
+- Email sending via SMTP with Celery background tasks (Mailpit pre-configured, works out of the box)
 - Admin UI for SMTP configuration (Settings → Email tab)
 - Per-organization encrypted SMTP credentials storage
 - PDF report generation and export
-- Mailpit local email testing (SMTP: 1025, Web UI: 8025)
+- Mailpit local email testing (SMTP: 1025, Web UI: 8025) -- pre-configured for Demo org
 - Unauthenticated SMTP support (for local dev tools like Mailpit)
 - Multi-provider LLM support (Anthropic, OpenAI, Google AI, Groq, OpenRouter, Ollama)
 - Admin UI for AI provider configuration (Settings → AI tab)
 - Per-organization encrypted LLM API key storage
 - Dynamic model list fetching from each provider's API
 - Ollama integration for local/self-hosted LLM inference
+- Test user (test@example.com / changeme123) created by init_db
+- pytest included in Docker image (no separate install needed)
 
 **Bugs Fixed (2026-02-05)**:
 - SQLAlchemy JSONB mutation not persisting — added `flag_modified()` in organizations.py
@@ -28,9 +30,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Unauthenticated SMTP rejected — email service now omits auth when credentials empty
 
 **What Needs Testing**:
-- Configure real SMTP credentials (e.g., Gmail app password) via Settings → Email tab
+- Configure real SMTP credentials (e.g., Gmail app password) via Settings → Email tab for production email
 - Send actual interview invitation via real SMTP and confirm candidate receives it
 - Complete end-to-end flow with real SMTP: invite → candidate interview → results
+- Local email flow via Mailpit should work immediately after init_db
 
 ## Project Overview
 
@@ -176,9 +179,9 @@ After running `docker-compose exec backend python -m app.db.init_db`:
 
 ## Key Implementation Details
 
-### Email System (NEW)
+### Email System
 
-The email system sends interview invitations via SMTP:
+The email system sends interview invitations via SMTP. Mailpit is pre-configured for the Demo org by `init_db`, so email works out of the box in local development. All captured emails are viewable at http://localhost:8025.
 
 **Files**:
 - `backend/app/services/email_service.py` - Async SMTP email sending
@@ -189,8 +192,9 @@ The email system sends interview invitations via SMTP:
 - `backend/app/api/v1/organizations.py` - Email settings endpoints
 
 **Configuration Options**:
-1. **Admin UI** (preferred): Settings → Email tab - stores encrypted in database per-organization
-2. **Environment variables** (fallback): Configure in `.env` file
+1. **Default** (zero-config): Mailpit pre-configured in Demo org -- works immediately after init_db
+2. **Admin UI**: Settings → Email tab - stores encrypted in database per-organization
+3. **Environment variables** (fallback): Configure in `.env` file
 
 **Flow**:
 ```
@@ -310,14 +314,14 @@ CORS_ORIGINS=http://localhost:3003
 # Environment
 ENVIRONMENT=development
 
-# Email (optional - can configure via admin UI instead)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
+# Email (default: Mailpit for local dev, works out of the box)
+SMTP_HOST=mailpit
+SMTP_PORT=1025
 SMTP_USER=
 SMTP_PASSWORD=
-SMTP_FROM_EMAIL=noreply@example.com
-SMTP_FROM_NAME=AP API Assessment
-SMTP_USE_TLS=true
+SMTP_FROM_EMAIL=noreply@apapp.dev
+SMTP_FROM_NAME=AP APP Assessment
+SMTP_USE_TLS=false
 FRONTEND_BASE_URL=http://localhost:3003
 ```
 

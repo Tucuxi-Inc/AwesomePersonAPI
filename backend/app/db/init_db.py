@@ -1,6 +1,7 @@
 """Database initialization and seeding script."""
 
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -49,6 +50,33 @@ def create_superuser(db: Session) -> User:
     db.refresh(superuser)
     print(f"Created superuser: {superuser.email}")
     return superuser
+
+
+def create_test_user(db: Session, org_id: uuid.UUID) -> User:
+    """Create test interviewer user if not exists."""
+    from sqlalchemy import select
+
+    stmt = select(User).where(User.email == "test@example.com")
+    existing = db.execute(stmt).scalar_one_or_none()
+
+    if existing:
+        print("Test user already exists")
+        return existing
+
+    test_user = User(
+        email="test@example.com",
+        hashed_password=get_password_hash("changeme123"),
+        full_name="Test Interviewer",
+        role="INTERVIEWER",
+        is_superuser=False,
+        is_active=True,
+        organization_id=org_id,
+    )
+    db.add(test_user)
+    db.commit()
+    db.refresh(test_user)
+    print(f"Created test user: {test_user.email}")
+    return test_user
 
 
 def create_demo_organization(db: Session) -> Organization:
@@ -370,6 +398,29 @@ def init_db() -> None:
         if superuser.organization_id is None:
             superuser.organization_id = org.id
             db.commit()
+
+        # Create test user
+        create_test_user(db, org.id)
+
+        # Pre-configure Mailpit email settings for the demo org
+        if not org.settings or not org.settings.get("email"):
+            from sqlalchemy.orm.attributes import flag_modified
+            if not org.settings:
+                org.settings = {}
+            org.settings["email"] = {
+                "smtp_host": "mailpit",
+                "smtp_port": 1025,
+                "smtp_user": "",
+                "smtp_password_encrypted": "",
+                "smtp_from_email": "noreply@apapp.dev",
+                "smtp_from_name": "AP APP Assessment",
+                "smtp_use_tls": False,
+                "configured_at": datetime.now(timezone.utc).isoformat(),
+                "configured_by": str(superuser.id),
+            }
+            flag_modified(org, "settings")
+            db.commit()
+            print("Pre-configured Mailpit email settings for Demo Organization")
 
         # Seed traits
         print("\nSeeding traits...")

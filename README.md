@@ -33,7 +33,7 @@ The AP API (Awesome Person API) is a talent assessment platform with two primary
 ### Prerequisites
 
 - Docker and Docker Compose
-- An Anthropic API key
+- An AI provider API key (Anthropic, OpenAI, Google AI, Groq, or OpenRouter) **OR** use Ollama for free local inference (no API key needed)
 
 ### Setup
 
@@ -45,7 +45,7 @@ cd AwesomePersonAPI
 # Copy environment configuration
 cp .env.example .env
 
-# Edit .env and add your Anthropic API key
+# Edit .env and add your AI provider API key (or use Ollama for local inference)
 # ANTHROPIC_API_KEY=sk-ant-...
 
 # Start all services
@@ -58,15 +58,42 @@ docker-compose exec backend alembic upgrade head
 docker-compose exec backend python -m app.db.init_db
 
 # Run tests
-docker-compose exec backend pytest -v
+docker-compose exec backend python -m pytest -v
 ```
+
+### Default Login Credentials
+
+After running `init_db`:
+
+| User | Email | Password | Role |
+|------|-------|----------|------|
+| Admin | admin@apapi.dev | changeme123 | ADMIN |
+| Test User | test@example.com | changeme123 | INTERVIEWER |
+
+### What's Included (Seed Data)
+
+The `init_db` command creates:
+- 1 Admin user + 1 Test user
+- 1 Demo Organization (pre-configured with Mailpit email)
+- 24 behavioral traits across 6 categories
+- 6 research-based scoring rubrics
+- 12+ role templates (Engineering, Sales, Leadership, etc.)
+- 5 sample jobs with descriptions
+- 6 sample candidates
+
+Email works out of the box via Mailpit -- all emails are captured at http://localhost:8025.
 
 ### Access Points
 
 - **Frontend**: http://localhost:3003
 - **Backend API**: http://localhost:8003
 - **API Documentation**: http://localhost:8003/docs
+- **Mailpit** (Email): http://localhost:8025 -- captures all emails sent locally
 - **Ollama API**: http://localhost:11434 (local LLM inference)
+
+### Demo Walkthrough
+
+New to the project? See **[DEMO.md](DEMO.md)** for a guided 5-minute walkthrough of the full product using Simple Mode. It covers creating an assessment from a job description, sending interview invitations, completing an AI-powered behavioral interview as a candidate, and viewing scored results with PDF export. All you need is a running `docker-compose` stack and an LLM provider API key.
 
 ## Project Structure
 
@@ -1089,13 +1116,13 @@ Handles interview invitation emails:
 
 ```bash
 # Run all tests
-docker-compose exec backend pytest -v
+docker-compose exec backend python -m pytest -v
 
 # Run with coverage
-docker-compose exec backend pytest --cov=app --cov-report=html
+docker-compose exec backend python -m pytest --cov=app --cov-report=html
 
 # Run specific test file
-docker-compose exec backend pytest tests/test_interview_engine.py -v
+docker-compose exec backend python -m pytest tests/test_interview_engine.py -v
 ```
 
 ### Database Migrations
@@ -1147,22 +1174,24 @@ ENVIRONMENT=development
 FRONTEND_BASE_URL=http://localhost:3003
 ```
 
-### Email Configuration (Optional)
+### Email Configuration
 
-Email can be configured via the Admin UI (Settings → Email) or environment variables. The Admin UI takes precedence if configured.
+Email works out of the box using Mailpit (local email capture). All sent emails are viewable at http://localhost:8025.
+
+For production use, configure real SMTP via the **Admin UI** (Settings → Email tab) or environment variables:
 
 ```bash
-# SMTP Settings (fallback if not configured in Admin UI)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM_EMAIL=noreply@yourdomain.com
-SMTP_FROM_NAME=AP API Assessment
-SMTP_USE_TLS=true
+# SMTP Settings (default: Mailpit for local dev)
+SMTP_HOST=mailpit
+SMTP_PORT=1025
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=noreply@apapp.dev
+SMTP_FROM_NAME=AP APP Assessment
+SMTP_USE_TLS=false
 ```
 
-**Gmail Setup**: Use an [App Password](https://support.google.com/accounts/answer/185833) (requires 2FA enabled) instead of your regular password.
+**Gmail Setup** (for production): Use an [App Password](https://support.google.com/accounts/answer/185833) (requires 2FA enabled) instead of your regular password.
 
 ### AI Provider Configuration
 

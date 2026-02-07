@@ -38,21 +38,26 @@ The AP API is a talent assessment platform that conducts AI-powered behavioral i
 
 ### What Needs Testing
 
-1. **Email Configuration** (highest priority)
+1. **Local Email Flow** (works out of the box)
+   - Mailpit is pre-configured for the Demo Organization -- no setup needed
    - Login as admin (`admin@apapi.dev` / `changeme123`)
-   - Go to Settings → Email tab
-   - Enter SMTP credentials (see Gmail setup below)
-   - Click "Save Settings"
-   - Enter your email address and click "Send Test Email"
-   - Check inbox for test email
+   - Create a Simple Mode assessment → add candidate → send invite
+   - Open http://localhost:8025 (Mailpit) to see the captured email
+   - Click the magic link to test the interview flow
 
 2. **End-to-End Interview Flow**
-   - After email is configured, send an actual interview invitation
+   - Send an interview invitation (email captured by Mailpit)
    - Click the magic link as a candidate
    - Complete the interview
    - View results in the dashboard
 
-### Gmail App Password Setup (Recommended for Testing)
+3. **Production Email** (optional, for real email delivery)
+   - Go to Settings → Email tab
+   - Enter real SMTP credentials (see Gmail setup below)
+   - Click "Send Test Email" to verify
+   - Invitations will now be sent to real inboxes
+
+### Gmail App Password Setup (For Production Email)
 
 1. Go to Google Account → Security → 2-Step Verification (enable if not already)
 2. Go to Google Account → Security → App Passwords
@@ -63,7 +68,7 @@ The AP API is a talent assessment platform that conducts AI-powered behavioral i
    - User: your Gmail address
    - Password: the 16-character app password
    - From Email: your Gmail address
-   - From Name: `AP API Assessment` (or any name)
+   - From Name: `AP APP Assessment` (or any name)
    - Use TLS: Yes (checked)
 
 ---
@@ -315,8 +320,8 @@ docker-compose exec backend python -m app.db.init_db
 
 ### Tests Failing
 
-1. **Install pytest**: `docker-compose exec backend pip install pytest pytest-asyncio`
-2. **Run tests**: `docker-compose exec backend python -m pytest -v`
+1. **Run tests**: `docker-compose exec backend python -m pytest -v`
+2. pytest is included in the Docker image -- no separate install needed
 
 ### Frontend Not Loading
 
@@ -350,6 +355,7 @@ The following features could be added but are not currently implemented:
 
 - **API Documentation**: http://localhost:8003/docs (Swagger UI)
 - **Frontend**: http://localhost:3003
+- **Mailpit** (Email): http://localhost:8025 (local email capture)
 - **Ollama API**: http://localhost:11434 (local LLM inference)
 - **Domain Docs**: See `ap_api_*.md` files in project root
 - **CLAUDE.md**: Instructions for Claude Code AI assistant
@@ -364,7 +370,7 @@ When picking up development:
 2. [ ] `docker-compose logs -f backend celery` - Monitor logs
 3. [ ] Open http://localhost:3003 - Frontend
 4. [ ] Login as admin: `admin@apapi.dev` / `changeme123`
-5. [ ] Go to Settings → Email to configure SMTP
-6. [ ] Send a test email to verify configuration
-7. [ ] Go to Settings → AI to configure LLM provider (optional, defaults to Anthropic)
-8. [ ] Create a Simple Mode assessment and test the full flow
+5. [ ] Email works out of the box via Mailpit (http://localhost:8025)
+6. [ ] Go to Settings → AI to configure LLM provider (optional, defaults to Anthropic)
+7. [ ] Create a Simple Mode assessment and test the full flow
+8. [ ] Check Mailpit for captured emails
