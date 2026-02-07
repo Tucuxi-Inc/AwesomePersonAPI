@@ -9,8 +9,6 @@ import {
   Settings,
   LogOut,
   Brain,
-  ClipboardList,
-  Shield,
   UserCheck,
   FolderOpen,
   Zap,
@@ -21,12 +19,10 @@ const navigation = [
   { name: 'Simple Mode', href: '/simple', icon: Zap },
   { name: 'Jobs', href: '/jobs', icon: FolderOpen },
   { name: 'Candidates', href: '/candidates', icon: Users },
-  { name: 'Interviews', href: '/interviews', icon: ClipboardList },
   { name: 'Profiling', href: '/profiling', icon: UserCheck },
   { name: 'Roles', href: '/roles', icon: Briefcase },
   { name: 'Traits', href: '/traits', icon: Brain },
   { name: 'Rubrics', href: '/rubrics', icon: FileText },
-  { name: 'Compliance', href: '/compliance', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -79,7 +75,7 @@ export function Layout() {
                 <p className="text-sm font-medium truncate">{user?.full_name}</p>
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={logout}>
+              <Button variant="ghost" size="icon" onClick={logout} aria-label="Sign out">
                 <LogOut className="w-4 h-4" />
               </Button>
             </div>

@@ -597,12 +597,7 @@ export const api = {
 
   // Step 2: Confirm Requirements
   confirmSimpleRequirements: (id: string, data: {
-    requirements: Array<{
-      id?: string;
-      type: string;
-      requirement: string;
-      required: boolean;
-    }>;
+    requirements: Record<string, unknown>;
   }) => client.post(`/simple/assessments/${id}/requirements/confirm`, data),
 
   // Step 3: Add Candidates

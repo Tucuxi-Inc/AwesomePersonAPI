@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/api/client';
 import { Organization, EmailSettings } from '@/types';
@@ -147,11 +148,10 @@ export default function Settings() {
         title: profileTitle.trim() || undefined,
         bio: profileBio.trim() || undefined,
       });
-      setProfileSuccess(true);
+      toast.success('Profile updated successfully');
       if (refreshUser) {
         refreshUser();
       }
-      setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       setProfileError(error.response?.data?.detail || 'Failed to update profile');
@@ -183,11 +183,10 @@ export default function Settings() {
         current_password: currentPassword,
         new_password: newPassword,
       });
-      setPasswordSuccess(true);
+      toast.success('Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setTimeout(() => setPasswordSuccess(false), 3000);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       setPasswordError(error.response?.data?.detail || 'Failed to change password');
@@ -210,8 +209,7 @@ export default function Settings() {
         name: orgName.trim() || undefined,
         description: orgDescription.trim() || undefined,
       });
-      setOrgSuccess(true);
-      setTimeout(() => setOrgSuccess(false), 3000);
+      toast.success('Organization updated successfully');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       setOrgError(error.response?.data?.detail || 'Failed to update organization');
@@ -241,8 +239,7 @@ export default function Settings() {
       });
       setEmailSettings(response.data);
       setSmtpPassword(''); // Clear password field after save
-      setEmailSuccess(true);
-      setTimeout(() => setEmailSuccess(false), 3000);
+      toast.success('Email settings saved successfully');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       setEmailError(error.response?.data?.detail || 'Failed to update email settings');
@@ -262,8 +259,7 @@ export default function Settings() {
     try {
       const response = await api.testEmailSettings(user.organization_id, testEmail);
       if (response.data.success) {
-        setTestEmailSuccess(response.data.message);
-        setTimeout(() => setTestEmailSuccess(null), 5000);
+        toast.success(response.data.message || 'Test email sent successfully');
       } else {
         setTestEmailError(response.data.error_detail || response.data.message);
       }

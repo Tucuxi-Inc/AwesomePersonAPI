@@ -34,6 +34,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 
 const recommendationConfig: Record<
   Recommendation,
@@ -200,6 +201,25 @@ export default function SimpleResults() {
         </Button>
       </div>
 
+      {/* How Scoring Works */}
+      <Card className="bg-muted/30 border-dashed">
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3">
+            <InfoTooltip
+              content="Scores are generated from behavioral evidence gathered during each candidate's AI-powered interview."
+              iconClassName="h-5 w-5"
+            />
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">How scoring works:</span>{' '}
+              Each candidate completes a structured behavioral interview assessed using the STAR+ methodology.
+              Scores (0-10) reflect demonstrated competency across selected traits, weighted by evidence quality.
+              Recommendations range from <span className="font-medium text-green-600">Strong Hire</span> to{' '}
+              <span className="font-medium text-red-600">No Hire</span> based on composite score and confidence level.
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -220,7 +240,10 @@ export default function SimpleResults() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Strong Hires</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium">Strong Hires</CardTitle>
+              <InfoTooltip content="Candidates scoring 75+ with high confidence (60%+). Exceptional fit for the role based on strong behavioral evidence." />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{strongHireCount}</div>
@@ -228,7 +251,10 @@ export default function SimpleResults() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Hires</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium">Hires</CardTitle>
+              <InfoTooltip content="Candidates scoring 65-74 with sufficient confidence. Good fit for the role with solid behavioral evidence." />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{hireCount}</div>
@@ -251,9 +277,24 @@ export default function SimpleResults() {
               <TableRow>
                 <TableHead className="w-12">Rank</TableHead>
                 <TableHead>Candidate</TableHead>
-                <TableHead>Composite Score</TableHead>
-                <TableHead>Recommendation</TableHead>
-                <TableHead>Qualification</TableHead>
+                <TableHead>
+                  <span className="flex items-center gap-1">
+                    Composite Score
+                    <InfoTooltip content="Weighted average of all trait scores (0-10). Higher scores indicate stronger demonstrated competency across the assessed traits." />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="flex items-center gap-1">
+                    Recommendation
+                    <InfoTooltip content="Strong Hire (75+, high confidence), Hire (65-74), Hold (45-64 or low confidence), No Hire (below 45). Counter-indicators can override to Hold." />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="flex items-center gap-1">
+                    Qualification
+                    <InfoTooltip content="Resume-based screening against the objective requirements. QUALIFIED means the candidate meets the hard requirements from the job description." />
+                  </span>
+                </TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>

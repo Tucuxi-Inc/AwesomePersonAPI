@@ -84,7 +84,7 @@ export function ResponseInput({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground hidden sm:inline">
-            Press Ctrl+Enter to submit
+            Press {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+Enter to submit
           </span>
           <Button
             onClick={handleSubmit}

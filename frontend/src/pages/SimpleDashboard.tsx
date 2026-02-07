@@ -21,7 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Briefcase, Users, CheckCircle, Clock } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Plus, Briefcase, Users, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 const statusColors: Record<SimpleAssessmentStatus, string> = {
@@ -47,6 +59,8 @@ export default function SimpleDashboard() {
   const { setAssessments, assessments, setCurrentAssessment, reset } = useSimpleStore();
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [assessmentToDelete, setAssessmentToDelete] = useState<SimpleAssessment | null>(null);
 
   useEffect(() => {
     loadAssessments();
@@ -76,6 +90,20 @@ export default function SimpleDashboard() {
   const handleViewAssessment = (assessment: SimpleAssessment) => {
     setCurrentAssessment(assessment);
     navigate(`/simple/assessments/${assessment.id}`);
+  };
+
+  const handleDeleteAssessment = async () => {
+    if (!assessmentToDelete) return;
+    try {
+      await api.deleteSimpleAssessment(assessmentToDelete.id);
+      toast.success(`Assessment "${assessmentToDelete.job_title}" deleted`);
+      loadAssessments();
+    } catch {
+      toast.error('Failed to delete assessment');
+    } finally {
+      setDeleteDialogOpen(false);
+      setAssessmentToDelete(null);
+    }
   };
 
   // Calculate stats
@@ -174,8 +202,16 @@ export default function SimpleDashboard() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 py-3">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                  <Skeleton className="h-5 w-12" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-28" />
+                </div>
+              ))}
             </div>
           ) : assessments.length === 0 ? (
             <div className="text-center py-8">
@@ -224,9 +260,23 @@ export default function SimpleDashboard() {
                       {format(new Date(assessment.created_at), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        {assessment.status === 'COMPLETED' ? 'View Results' : 'Continue'}
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm">
+                          {assessment.status === 'COMPLETED' ? 'View Results' : 'Continue'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAssessmentToDelete(assessment);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -235,6 +285,28 @@ export default function SimpleDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Assessment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the assessment "{assessmentToDelete?.job_title}" and all
+              associated candidate data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAssessment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

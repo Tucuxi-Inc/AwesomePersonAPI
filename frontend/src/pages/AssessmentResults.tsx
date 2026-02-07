@@ -48,6 +48,7 @@ export default function AssessmentResults() {
     navigate('/candidates');
   };
 
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -132,10 +133,12 @@ export default function AssessmentResults() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" disabled>
-            <Download className="mr-2 h-4 w-4" />
-            Export PDF
-          </Button>
+          <span title="PDF export is available in Simple Mode assessments">
+            <Button variant="outline" disabled>
+              <Download className="mr-2 h-4 w-4" />
+              Export PDF
+            </Button>
+          </span>
           <Button onClick={handleNewInterview}>
             New Interview
           </Button>

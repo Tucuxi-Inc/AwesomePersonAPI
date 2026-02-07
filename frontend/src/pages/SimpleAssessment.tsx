@@ -52,6 +52,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 
 // Step indicator component
 function StepIndicator({
@@ -164,6 +166,27 @@ export default function SimpleAssessment() {
     loadTraits();
   }, [id]);
 
+  // Auto-refresh interview status when on interviews step
+  useEffect(() => {
+    if (currentStep !== 'interviews' || !currentAssessment) return;
+
+    const hasInProgress = candidates.some(
+      (c) => c.interview_status === 'INVITED' || c.interview_status === 'IN_PROGRESS'
+    );
+    if (!hasInProgress) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await api.getSimpleCandidates(currentAssessment.id);
+        setCandidates(response.data.items || response.data);
+      } catch {
+        // Silently ignore polling errors
+      }
+    }, 15000); // Poll every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [currentStep, currentAssessment, candidates]);
+
   const loadAssessment = async (assessmentId: string) => {
     setLoading(true);
     setError(null);
@@ -211,7 +234,7 @@ export default function SimpleAssessment() {
     setSubmitting(true);
     setError(null);
     try {
-      await api.confirmSimpleRequirements(currentAssessment.id, draftRequirements);
+      await api.confirmSimpleRequirements(currentAssessment.id, { requirements: draftRequirements });
       const response = await api.getSimpleAssessment(currentAssessment.id);
       setCurrentAssessment(response.data);
       setCurrentStep('candidates');
@@ -340,6 +363,7 @@ export default function SimpleAssessment() {
 
   const copyInviteLink = () => {
     navigator.clipboard.writeText(inviteLink);
+    toast.success('Link copied to clipboard');
   };
 
   // Step 6: View Results
@@ -407,7 +431,10 @@ export default function SimpleAssessment() {
             <CardContent className="space-y-6">
               {/* Objective Requirements */}
               <div>
-                <Label className="text-base font-semibold">Objective Requirements</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-base font-semibold">Objective Requirements</Label>
+                  <InfoTooltip content="Hard skills, certifications, and experience levels extracted from the job description. 'Required' items are must-haves; 'Preferred' items are nice-to-haves that strengthen a candidate." />
+                </div>
                 <div className="mt-2 space-y-2">
                   {draftRequirements?.objective_requirements.map((req, index) => (
                     <div key={req.id || index} className="flex items-center gap-2 p-2 border rounded">
@@ -431,7 +458,10 @@ export default function SimpleAssessment() {
 
               {/* Nice-to-haves */}
               <div>
-                <Label className="text-base font-semibold">Nice-to-Haves</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-base font-semibold">Nice-to-Haves</Label>
+                  <InfoTooltip content="Desirable qualities that aren't strict requirements. These won't disqualify candidates but may be used as tiebreakers between similar candidates." />
+                </div>
                 <div className="mt-2 space-y-2">
                   {draftRequirements?.nice_to_haves.map((item, index) => (
                     <div key={index} className="p-2 border rounded">
@@ -463,7 +493,10 @@ export default function SimpleAssessment() {
 
               {/* Suggested Traits */}
               <div>
-                <Label className="text-base font-semibold">Suggested Traits</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-base font-semibold">Suggested Traits</Label>
+                  <InfoTooltip content="Personality traits AI identified as important for this role. You'll select which ones to assess in the next step." />
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {draftRequirements?.suggested_traits.map((trait, index) => (
                     <Badge key={index} variant="outline">
@@ -602,7 +635,10 @@ export default function SimpleAssessment() {
         {currentStep === 'traits' && (
           <Card>
             <CardHeader>
-              <CardTitle>Select Traits to Assess</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle>Select Traits to Assess</CardTitle>
+                <InfoTooltip content="Traits are behavioral qualities evaluated through structured interview questions using the STAR+ methodology (Situation, Task, Action, Result + Reflection). Each trait gets a score from 1-5 based on evidence from the interview." />
+              </div>
               <CardDescription>
                 Choose up to 5 personality traits to evaluate during interviews. Based on the job
                 description, we suggest: {draftRequirements?.suggested_traits.join(', ')}
@@ -636,8 +672,12 @@ export default function SimpleAssessment() {
                           <div className="flex items-center gap-2">
                             <h4 className="font-medium">{trait.name}</h4>
                             {isSuggested && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs gap-1">
                                 Suggested
+                                <InfoTooltip
+                                  content="AI identified this trait as particularly relevant based on the job description and responsibilities."
+                                  iconClassName="h-3 w-3"
+                                />
                               </Badge>
                             )}
                           </div>
@@ -671,10 +711,13 @@ export default function SimpleAssessment() {
         {currentStep === 'interviews' && (
           <Card>
             <CardHeader>
-              <CardTitle>Conduct Interviews</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle>Conduct Interviews</CardTitle>
+                <InfoTooltip content="Each candidate receives a unique link to an AI-powered behavioral interview. The interview takes 15-30 minutes and evaluates the selected traits using evidence-based questioning." />
+              </div>
               <CardDescription>
-                Send interview invites to candidates. They will receive a magic link to complete the
-                interview at their convenience.
+                Send interview invites to candidates. They will receive a unique link to complete the
+                interview at their convenience (no account needed).
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -699,7 +742,10 @@ export default function SimpleAssessment() {
                   <TableRow>
                     <TableHead>Candidate</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Interview Status</TableHead>
+                    <TableHead className="flex items-center gap-1">
+                      Interview Status
+                      <InfoTooltip content="NOT_STARTED: invite not yet sent. INVITED: link sent, awaiting response. IN_PROGRESS: candidate is currently interviewing. COMPLETED: interview finished, results available." />
+                    </TableHead>
                     <TableHead>Invited At</TableHead>
                     <TableHead></TableHead>
                   </TableRow>

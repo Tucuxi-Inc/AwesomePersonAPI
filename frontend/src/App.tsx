@@ -1,4 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Layout } from '@/components/common/Layout';
 import { ProtectedRoute } from '@/components/common/ProtectedRoute';
 import { Login } from '@/pages/Login';
@@ -28,7 +31,10 @@ import SimplePublicInterview from '@/pages/SimplePublicInterview';
 
 function App() {
   return (
+    <ErrorBoundary>
+    <TooltipProvider delayDuration={300}>
     <BrowserRouter>
+      <Toaster position="top-right" richColors closeButton />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<Landing />} />
@@ -67,6 +73,8 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </TooltipProvider>
+    </ErrorBoundary>
   );
 }
 

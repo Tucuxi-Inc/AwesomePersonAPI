@@ -6,14 +6,12 @@ import { Input } from '@/components/ui/input';
 import { api } from '@/api/client';
 import { Candidate, CandidateStatus, Resume } from '@/types';
 import {
-  Plus,
   Search,
   Play,
   Eye,
   User,
   Briefcase,
   Mail,
-  MoreHorizontal,
   AlertTriangle,
   Loader2,
   ChevronLeft,
@@ -270,10 +268,9 @@ export default function Candidates() {
           <h1 className="text-2xl font-bold tracking-tight">Candidates</h1>
           <p className="text-muted-foreground">Manage candidates and conduct interviews</p>
         </div>
-        <Button onClick={() => navigate('/candidates/new')} disabled>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Candidate
-        </Button>
+        <p className="text-sm text-muted-foreground">
+          Use <span className="font-medium">Simple Mode</span> to add candidates to an assessment
+        </p>
       </div>
 
       {/* Filters */}
@@ -337,11 +334,10 @@ export default function Candidates() {
             <p className="text-muted-foreground mb-4">
               {searchQuery || statusFilter
                 ? 'Try adjusting your search or filters.'
-                : 'Get started by adding your first candidate.'}
+                : 'Create an assessment in Simple Mode to get started.'}
             </p>
-            <Button onClick={() => navigate('/candidates/new')} disabled>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Candidate
+            <Button onClick={() => navigate('/simple')}>
+              Go to Simple Mode
             </Button>
           </CardContent>
         </Card>
