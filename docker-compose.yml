@@ -126,7 +126,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: apapi-frontend
     environment:
-      - VITE_API_URL=http://localhost:8003
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8003}
     ports:
       - "3003:3000"
     volumes:

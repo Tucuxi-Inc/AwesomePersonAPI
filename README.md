@@ -95,6 +95,65 @@ Email works out of the box via Mailpit -- all emails are captured at http://loca
 
 New to the project? See **[DEMO.md](DEMO.md)** for a guided 5-minute walkthrough of the full product using Simple Mode. It covers creating an assessment from a job description, sending interview invitations, completing an AI-powered behavioral interview as a candidate, and viewing scored results with PDF export. All you need is a running `docker-compose` stack and an LLM provider API key.
 
+## Remote / Production Deployment
+
+When deploying to a remote server (not localhost), update these settings in `.env`:
+
+### Required Changes
+
+```bash
+# CORS — allow your frontend domain
+CORS_ORIGINS=https://your-frontend-domain.com
+
+# Frontend URL — used for magic links in invitation emails
+FRONTEND_BASE_URL=https://your-frontend-domain.com
+
+# Vite API URL — tells the frontend where the backend lives
+VITE_API_URL=https://your-api-domain.com
+
+# Security — use a real secret key (32+ chars)
+SECRET_KEY=generate-a-real-secret-key-here
+```
+
+### Port Conflicts
+
+If you already have PostgreSQL or Redis running on the host:
+
+```yaml
+# In docker-compose.yml, change the host port (left side):
+ports:
+  - "5433:5432"  # Map to 5433 instead of 5432
+```
+
+Or use an external database by setting `DATABASE_URL` and `DATABASE_URL_SYNC` directly in `.env` and removing the `db` service from docker-compose.yml.
+
+### Optional Services
+
+**Ollama** and **Mailpit** are optional. To start without them:
+
+```bash
+docker-compose up -d db redis backend celery frontend
+```
+
+- **Ollama**: Only needed if using local LLM inference (`LLM_PROVIDER=ollama`). Skip if using Anthropic/OpenAI/etc.
+- **Mailpit**: Only needed for local email capture. In production, configure real SMTP via Settings → Email tab or `.env`.
+
+### SMTP for Production
+
+For real email delivery (not Mailpit), update `.env`:
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password   # Gmail App Password (requires 2FA)
+SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_FROM_NAME=Your Company Assessment
+SMTP_USE_TLS=true
+```
+
+Or configure per-organization via **Settings → Email tab** in the admin UI.
+
 ## Project Structure
 
 ```
