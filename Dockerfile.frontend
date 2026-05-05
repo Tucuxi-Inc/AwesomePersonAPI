@@ -3,8 +3,10 @@ FROM node:20-slim
 WORKDIR /app
 
 # Install dependencies
+# Workaround for npm bug where optional platform-specific deps (e.g. @rollup/rollup-linux-arm64-gnu)
+# aren't installed when a package-lock.json built on a different platform is present.
 COPY frontend/package*.json ./
-RUN npm install
+RUN rm -f package-lock.json && npm install --include=optional
 
 # Copy application code
 COPY frontend/ .
