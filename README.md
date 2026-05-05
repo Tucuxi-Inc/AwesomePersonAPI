@@ -605,6 +605,36 @@ docker-compose up -d db redis backend celery frontend
 
 ---
 
+## Known issues
+
+This is an open-source project that ships with rough edges. Calling them out so you don't hit them and assume the platform is broken.
+
+### Visible in the current demo deck
+
+- **Composite-score scale mismatch** (results page).
+  The "Composite Score" column on the Simple Mode results page shows a value like `122.5/10` instead of `82/100`. The `/100` recommendation thresholds are correct (`STRONG_HIRE ≥ 75`, `HIRE ≥ 60`, etc.), but either the trait-score calibration in `backend/app/services/score_calibrator.py` is producing values above the documented 1–5 trait-score range, or the frontend is mislabeling the scale. Either way, the recommendation badge derived from the same number *is* correct, so trust the badge over the headline number until this is fixed. Visible at [`docs/demo/screenshots/21-results-page.png`](docs/demo/screenshots/21-results-page.png).
+
+- **Aggregator tiles always show 0** (results page).
+  The Total Candidates / Interviews Completed / Strong Hires / Hires tiles at the top of the Simple Mode results page don't reflect actual state. Per-candidate row data in the table below them *is* correct, so the assessment is fine — the tiles are just wired to a counter that isn't being incremented when interviews complete. Likely a missing `assessment.qualified_candidates` and `assessment.total_candidates` update path in `backend/app/api/v1/simple.py`. Same screenshot.
+
+### Frontend / API contract drift
+
+The demo run in May 2026 surfaced several silent contract mismatches between the FastAPI backend and the reference React frontend (the candidate landing page crashed with TypeError on every magic-link visit; Step 2 of the wizard crashed on every successful LLM extraction; etc.). These have been fixed in the commits leading up to `1bb310b`, but the lesson is general: **if you find another silent crash in the wizard, suspect a Pydantic field name mismatch first**. The backend ships canonical names; the frontend was sometimes written against names that don't exist server-side. We've started shipping both naming conventions on the public-interview responses (`progress` + `overall_progress`, `is_complete` + `interview_complete`) — the same pattern is a good fix template.
+
+### Documented but not implemented
+
+- **Webhooks** (`interview.completed`, etc.) — README/code mention them as roadmap; no scaffolding yet.
+- **API-key auth for Simple Mode + tiered rate limits** (FREE / BASIC / PRO / ENTERPRISE) — referenced in older READMEs but not in code. Simple Mode currently uses standard JWT.
+- **SCIM/SSO** — JWT only at present.
+
+If any of these block your use case, please open an issue or PR — they're prioritized by community demand.
+
+### How to report
+
+Open a GitHub issue with: the wizard step, the API call URL/method, the error message (browser console + backend logs), and a screenshot if it's UI-side. Please include the `git rev-parse HEAD` of your checkout — drift from `main` is a common root cause.
+
+---
+
 ## Contributing
 
 1. Fork and create a feature branch from `main`.
