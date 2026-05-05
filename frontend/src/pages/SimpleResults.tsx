@@ -170,7 +170,11 @@ export default function SimpleResults() {
   );
 
   // Stats
-  const completedCount = results.results.filter((r) => r.interview_status === 'COMPLETED').length;
+  // The /results endpoint returns `completed_interviews` directly; the per-row
+  // shape doesn't include `interview_status` (only candidates that have
+  // completed are even surfaced in `results.results`). The earlier filter
+  // produced 0 because the field it inspected didn't exist.
+  const completedCount = results.completed_interviews ?? results.results.length;
   const strongHireCount = results.results.filter((r) => r.recommendation === 'STRONG_HIRE').length;
   const hireCount = results.results.filter((r) => r.recommendation === 'HIRE').length;
 
@@ -253,7 +257,7 @@ export default function SimpleResults() {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium">Hires</CardTitle>
-              <InfoTooltip content="Candidates scoring 65-74 with sufficient confidence. Good fit for the role with solid behavioral evidence." />
+              <InfoTooltip content="Candidates scoring 60–74 with sufficient confidence (50%+). Good fit for the role with solid behavioral evidence." />
             </div>
           </CardHeader>
           <CardContent>
@@ -280,13 +284,13 @@ export default function SimpleResults() {
                 <TableHead>
                   <span className="flex items-center gap-1">
                     Composite Score
-                    <InfoTooltip content="Weighted average of all trait scores (0-10). Higher scores indicate stronger demonstrated competency across the assessed traits." />
+                    <InfoTooltip content="Confidence-weighted composite of all trait scores (0–100). Higher scores indicate stronger demonstrated competency across the assessed traits." />
                   </span>
                 </TableHead>
                 <TableHead>
                   <span className="flex items-center gap-1">
                     Recommendation
-                    <InfoTooltip content="Strong Hire (75+, high confidence), Hire (65-74), Hold (45-64 or low confidence), No Hire (below 45). Counter-indicators can override to Hold." />
+                    <InfoTooltip content="Strong Hire (75+, high confidence), Hire (60-74), Hold (40-59 or low confidence), No Hire (below 40). Counter-indicators can override to Hold." />
                   </span>
                 </TableHead>
                 <TableHead>
@@ -321,11 +325,11 @@ export default function SimpleResults() {
                       {candidate.composite_score !== null ? (
                         <div className="flex items-center gap-2">
                           <Progress
-                            value={(candidate.composite_score / 10) * 100}
+                            value={candidate.composite_score}
                             className="w-24 h-2"
                           />
                           <span className="font-medium">
-                            {candidate.composite_score.toFixed(1)}/10
+                            {Math.round(candidate.composite_score)}/100
                           </span>
                         </div>
                       ) : (
@@ -406,11 +410,11 @@ export default function SimpleResults() {
                     <CardContent>
                       <div className="flex items-center gap-4">
                         <div className="text-4xl font-bold">
-                          {selectedCandidate.composite_score.toFixed(1)}
+                          {Math.round(selectedCandidate.composite_score)}
                         </div>
-                        <div className="text-muted-foreground">/ 10</div>
+                        <div className="text-muted-foreground">/ 100</div>
                         <Progress
-                          value={(selectedCandidate.composite_score / 10) * 100}
+                          value={selectedCandidate.composite_score}
                           className="flex-1 h-4"
                         />
                       </div>

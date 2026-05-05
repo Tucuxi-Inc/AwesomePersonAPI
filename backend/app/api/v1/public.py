@@ -1144,8 +1144,15 @@ async def _generate_simple_candidate_scores(
     # Generate assessment
     assessment = await calibrator.generate_assessment(all_calibrated_scores)
 
-    # Update candidate with results
+    # Update candidate with results.
+    #
+    # ScoreCalibrator already returns composite_score on a 0–100 scale (per
+    # the recommendation thresholds: STRONG_HIRE ≥ 75, HIRE ≥ 60, HOLD ≥ 40).
+    # The previous code re-applied a 1–5 → 0–10 conversion that produced
+    # values >100 (e.g. weighted_avg=5 → composite=100 → "(100-1)*2.5=247.5"
+    # in the worst case; in practice we observed 122.5 in production demos).
+    # Persist the composite as-is.
     candidate.trait_scores = trait_scores
-    candidate.composite_score = round((assessment.composite_score.composite_score - 1) * 2.5, 1)
+    candidate.composite_score = round(assessment.composite_score.composite_score, 1)
     candidate.recommendation = assessment.recommendation.value
     candidate.recommendation_rationale = assessment.recommendation_rationale
