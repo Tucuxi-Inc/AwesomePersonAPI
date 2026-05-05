@@ -187,12 +187,20 @@ class PublicInterviewInfoResponse(BaseModel):
 
 
 class PublicInterviewStartResponse(BaseModel):
-    """Response after starting public interview."""
+    """Response after starting public interview.
+
+    Includes both `overall_progress`/`interview_complete` (the canonical
+    field names used internally) and `progress`/`is_complete` (the names
+    the reference frontend reads). Populating both keeps all consumers
+    happy without forcing one side or the other to migrate.
+    """
     session_id: str
     next_prompt: str
     prompt_type: str
     trait_name: Optional[str]
     overall_progress: float
+    progress: float = 0.0
+    is_complete: bool = False
 
 
 class PublicInterviewRespondRequest(BaseModel):
@@ -201,12 +209,20 @@ class PublicInterviewRespondRequest(BaseModel):
 
 
 class PublicInterviewRespondResponse(BaseModel):
-    """Response after submitting answer."""
+    """Response after submitting answer.
+
+    See PublicInterviewStartResponse note: ships both naming conventions
+    so the frontend's `progress`/`is_complete` reads work alongside any
+    third-party client that uses the canonical `overall_progress`/
+    `interview_complete` names.
+    """
     next_prompt: str
     prompt_type: str
     trait_name: Optional[str]
     overall_progress: float
+    progress: float = 0.0
     interview_complete: bool
+    is_complete: bool = False
 
 
 class PublicInterviewStatusResponse(BaseModel):

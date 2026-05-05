@@ -872,13 +872,27 @@ async def start_simple_interview(
     # Create interview session
     session_id = str(uuid.uuid4())
 
-    # Create job context from assessment
+    # Create job context from assessment.
+    # extracted_requirements may be either the new bundle dict
+    # ({objective_requirements, nice_to_haves, responsibilities, suggested_traits})
+    # or the legacy flat list of objective requirements (pre-bundle rows). Handle
+    # both so interview_engine._format_job_context() always sees dict-shaped reqs.
+    raw_reqs = assessment.extracted_requirements or {}
+    if isinstance(raw_reqs, dict):
+        objective = raw_reqs.get("objective_requirements") or []
+        nice_to_haves = raw_reqs.get("nice_to_haves") or []
+        responsibilities = raw_reqs.get("responsibilities") or []
+    else:
+        objective = list(raw_reqs)
+        nice_to_haves = []
+        responsibilities = []
+
     job_context = JobContext(
         job_id=str(assessment.id),
         title=assessment.job_title,
-        responsibilities=[],
-        objective_requirements=assessment.extracted_requirements,
-        nice_to_haves=[],
+        responsibilities=responsibilities,
+        objective_requirements=objective,
+        nice_to_haves=nice_to_haves,
         description=assessment.job_description,
     )
 
@@ -952,6 +966,8 @@ async def start_simple_interview(
         prompt_type=response.prompt_type,
         trait_name=response.trait_progress.trait_name if response.trait_progress else None,
         overall_progress=response.overall_progress,
+        progress=response.overall_progress,
+        is_complete=False,
     )
 
 
@@ -1037,7 +1053,9 @@ async def submit_simple_response(
         prompt_type=response.prompt_type,
         trait_name=response.trait_progress.trait_name if response.trait_progress else None,
         overall_progress=response.overall_progress,
+        progress=response.overall_progress,
         interview_complete=response.interview_complete,
+        is_complete=response.interview_complete,
     )
 
 
