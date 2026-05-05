@@ -43,7 +43,9 @@ from app.schemas.simple import (
     SimpleAssessmentListResponse,
     SimpleCandidateResponse,
     SimpleCandidateDetailResponse,
+    ExtractedRequirementsBundle,
     RequirementResponse,
+    SendInviteResponse,
     TraitOptionsResponse,
     TraitOptionResponse,
     AssessmentResultsResponse,
@@ -61,14 +63,27 @@ router = APIRouter()
 
 def _to_assessment_response(assessment: SimpleAssessment) -> SimpleAssessmentResponse:
     """Convert assessment to response."""
+    raw = assessment.extracted_requirements
+    if isinstance(raw, dict):
+        bundle = ExtractedRequirementsBundle(
+            objective_requirements=[RequirementResponse(**r) for r in raw.get("objective_requirements", [])],
+            nice_to_haves=raw.get("nice_to_haves", []),
+            responsibilities=raw.get("responsibilities", []),
+            suggested_traits=raw.get("suggested_traits", []),
+        )
+    elif isinstance(raw, list):
+        # Legacy rows stored only the objective list; promote to the bundle shape.
+        bundle = ExtractedRequirementsBundle(
+            objective_requirements=[RequirementResponse(**r) for r in raw],
+        )
+    else:
+        bundle = ExtractedRequirementsBundle()
     return SimpleAssessmentResponse(
         id=str(assessment.id),
         job_title=assessment.job_title,
         job_description=assessment.job_description[:500] + "..." if len(assessment.job_description) > 500 else assessment.job_description,
         status=assessment.status.value,
-        extracted_requirements=[
-            RequirementResponse(**req) for req in assessment.extracted_requirements
-        ],
+        extracted_requirements=bundle,
         requirements_confirmed=assessment.requirements_confirmed,
         selected_trait_ids=assessment.selected_trait_ids,
         total_candidates=assessment.total_candidates,
@@ -126,10 +141,24 @@ async def create_assessment(
             job_title=request.job_title,
             job_description=request.job_description,
         )
-        assessment.extracted_requirements = extraction.objective_requirements or []
-    except Exception:
-        # If extraction fails, set empty requirements and let user add manually
-        assessment.extracted_requirements = []
+        assessment.extracted_requirements = {
+            "objective_requirements": extraction.objective_requirements or [],
+            "nice_to_haves": extraction.nice_to_haves or [],
+            "responsibilities": extraction.responsibilities or [],
+            "suggested_traits": extraction.suggested_traits or [],
+        }
+    except Exception as exc:
+        # If extraction fails, log loudly and set empty bundle so the user can
+        # edit manually. Previously this was a bare-except that masked LLM
+        # config errors (404s, missing keys) and made the wizard look broken.
+        import logging
+        logging.getLogger(__name__).exception("Job-description extraction failed: %s", exc)
+        assessment.extracted_requirements = {
+            "objective_requirements": [],
+            "nice_to_haves": [],
+            "responsibilities": [],
+            "suggested_traits": [],
+        }
 
     db.add(assessment)
     await db.commit()
@@ -220,7 +249,9 @@ async def confirm_requirements(
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    assessment.extracted_requirements = request.requirements
+    # request.requirements is the full bundle (objective + nice-to-haves +
+    # responsibilities + suggested_traits). Persist the dict form.
+    assessment.extracted_requirements = request.requirements.model_dump()
     assessment.requirements_confirmed = True
     assessment.requirements_confirmed_at = datetime.now(timezone.utc)
     assessment.status = SimpleAssessmentStatus.TRAITS_PENDING
@@ -232,6 +263,30 @@ async def confirm_requirements(
 
 
 # --- Step 3: Add Candidates ---
+
+@router.get("/assessments/{assessment_id}/candidates", response_model=List[SimpleCandidateResponse])
+async def list_assessment_candidates(
+    assessment_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> List[SimpleCandidateResponse]:
+    """List all candidates attached to an assessment.
+
+    The frontend wizard refreshes this after every mutation (add candidate,
+    send invite, delete) to update its candidate table. Returns an empty list
+    if the assessment has no candidates yet.
+    """
+    result = await db.execute(
+        select(SimpleAssessment)
+        .where(SimpleAssessment.id == uuid.UUID(assessment_id))
+        .where(SimpleAssessment.organization_id == current_user.organization_id)
+        .options(selectinload(SimpleAssessment.candidates))
+    )
+    assessment = result.scalar_one_or_none()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    return [_to_candidate_response(c) for c in assessment.candidates]
+
 
 @router.post("/assessments/{assessment_id}/candidates", response_model=SimpleCandidateResponse)
 async def add_candidate(
@@ -438,14 +493,14 @@ async def select_traits(
 
 # --- Step 5: Send Invites ---
 
-@router.post("/assessments/{assessment_id}/candidates/{candidate_id}/send-invite")
+@router.post("/assessments/{assessment_id}/candidates/{candidate_id}/send-invite", response_model=SendInviteResponse)
 async def send_interview_invite(
     assessment_id: str,
     candidate_id: str,
     request: Optional[SendInviteRequest] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
     current_user: Annotated[User, Depends(get_current_user)] = None,
-) -> SimpleCandidateResponse:
+) -> SendInviteResponse:
     """Send magic link interview invite to candidate (Step 5)."""
     result = await db.execute(
         select(SimpleCandidate)
@@ -507,7 +562,17 @@ async def send_interview_invite(
         smtp_settings=smtp_settings,
     )
 
-    return _to_candidate_response(candidate)
+    # Build the candidate-facing magic link from settings.FRONTEND_BASE_URL.
+    from app.config import settings as _settings
+    frontend_base = _settings.FRONTEND_BASE_URL.rstrip("/")
+    magic_link = f"{frontend_base}/interview/{token}"
+
+    return SendInviteResponse(
+        candidate_id=str(candidate.id),
+        magic_link=magic_link,
+        expires_at=candidate.magic_link_expires_at,
+        email_queued=True,
+    )
 
 
 # --- Step 6: View Results ---

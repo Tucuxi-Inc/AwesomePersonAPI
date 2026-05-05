@@ -806,12 +806,23 @@ async def get_simple_interview_info(
     )
     org = org_result.scalar_one()
 
+    # Resolve trait names for the candidate landing page
+    from app.models import Trait as _Trait
+    trait_names: list[str] = []
+    if assessment.selected_trait_ids:
+        traits_result = await db.execute(
+            select(_Trait).where(_Trait.id.in_(assessment.selected_trait_ids))
+        )
+        trait_names = [t.name for t in traits_result.scalars().all()]
+
     return PublicInterviewInfoResponse(
         job_title=assessment.job_title,
         organization_name=org.name,
         candidate_name=candidate.full_name,
         estimated_duration_minutes=30,
         traits_count=len(assessment.selected_trait_ids),
+        traits_to_assess=trait_names,
+        interview_status=candidate.interview_status.value if candidate.interview_status else "NOT_STARTED",
         instructions="""
 Welcome to your interview! Here's what to expect:
 

@@ -1,8 +1,26 @@
 """Pydantic schemas for Simple Mode."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, EmailStr
+
+
+# --- Shared bundle types (defined first so request/response schemas can reference) ---
+
+class RequirementResponse(BaseModel):
+    """A single objective requirement extracted from a job description."""
+    id: str
+    type: str  # education, experience, skill, certification
+    requirement: str
+    required: bool
+
+
+class ExtractedRequirementsBundle(BaseModel):
+    """Full LLM-extracted requirements payload, matching the frontend contract."""
+    objective_requirements: List[RequirementResponse] = []
+    nice_to_haves: List[Dict[str, Any]] = []
+    responsibilities: List[str] = []
+    suggested_traits: List[str] = []
 
 
 # --- Request Schemas ---
@@ -14,12 +32,16 @@ class CreateSimpleAssessmentRequest(BaseModel):
 
 
 class ConfirmRequirementsRequest(BaseModel):
-    """Request to confirm extracted requirements."""
-    requirements: List[dict] = Field(
+    """Request to confirm extracted requirements.
+
+    Accepts the full bundle (objective_requirements + nice_to_haves +
+    responsibilities + suggested_traits) so the user can edit any of them
+    before locking in.
+    """
+    requirements: ExtractedRequirementsBundle = Field(
         ...,
-        description="List of requirements to confirm"
+        description="Full bundle of requirements (objective + nice-to-haves + responsibilities + suggested traits)"
     )
-    # Format: [{"id": "uuid", "type": "education", "requirement": "text", "required": true}]
 
 
 class SelectTraitsRequest(BaseModel):
@@ -48,15 +70,16 @@ class SendInviteRequest(BaseModel):
     )
 
 
+class SendInviteResponse(BaseModel):
+    """Response from sending an interview invite — surfaces the magic link
+    so admins can copy it for out-of-band channels."""
+    candidate_id: str
+    magic_link: str
+    expires_at: datetime
+    email_queued: bool
+
+
 # --- Response Schemas ---
-
-class RequirementResponse(BaseModel):
-    """Extracted requirement."""
-    id: str
-    type: str  # education, experience, skill, certification
-    requirement: str
-    required: bool
-
 
 class SimpleCandidateResponse(BaseModel):
     """Simple candidate response."""
@@ -89,7 +112,7 @@ class SimpleAssessmentResponse(BaseModel):
     job_title: str
     job_description: str
     status: str
-    extracted_requirements: List[RequirementResponse]
+    extracted_requirements: ExtractedRequirementsBundle = ExtractedRequirementsBundle()
     requirements_confirmed: bool
     selected_trait_ids: List[str]
     total_candidates: int
@@ -158,6 +181,8 @@ class PublicInterviewInfoResponse(BaseModel):
     candidate_name: str
     estimated_duration_minutes: int = 30
     traits_count: int
+    traits_to_assess: List[str] = []
+    interview_status: str = "NOT_STARTED"
     instructions: str
 
 
