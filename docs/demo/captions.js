@@ -103,6 +103,6 @@ window.SLIDES = [
   {
     "filename": "21-results-page.png",
     "title": "Results \u2014 composite score, recommendation, and PDF export",
-    "narrative": "The headline 0\u201310 number on the candidate row is the calibrated trait composite. The amber Hold badge is the recommendation \u2014 note this isn't just composite > X; it factors in evidence quality, the behavioral floor, and any counter-indicator flags. The Export PDF button (top-right) generates the defensible-record artifact: every trait score, the evidence chain, the recommendation rationale, and any compliance flags. That's the file you hand to a hiring committee \u2014 and the one a regulator would want to see. (NB: stat tiles say 0/0/0 \u2014 that's a known aggregator bug; the per-candidate row is correct.)"
+    "narrative": "The headline composite is on the documented 0\u2013100 scale (Sarah lands at 50/100 \u2192 HOLD; Strong Hire is 75+, Hire is 60+). The Hold badge isn't just composite > X \u2014 it factors in evidence quality, the behavioral floor, and any counter-indicator flags. The Total Candidates / Interviews Completed / Strong Hires / Hires tiles aggregate the cohort. The Export PDF button (top-right) generates the defensible-record artifact: every trait score, the evidence chain, the recommendation rationale, and any compliance flags. That's the file you hand to a hiring committee \u2014 and the one a regulator would want to see."
   }
 ];
