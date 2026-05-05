@@ -1,0 +1,1258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AP API — Architecture Explorer</title>
+<style>
+  :root {
+    --bg-0: #09090b;
+    --bg-1: #0f0f12;
+    --bg-2: #16161a;
+    --bg-3: #1c1c22;
+    --bg-4: #232329;
+    --line: #2a2a32;
+    --line-2: #3a3a44;
+    --fg-0: #fafafa;
+    --fg-1: #d4d4d8;
+    --fg-2: #a1a1aa;
+    --fg-3: #71717a;
+    --accent: #8b5cf6;
+    --accent-2: #6366f1;
+    --good: #10b981;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --info: #3b82f6;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg-0);
+    color: var(--fg-1);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px 200px; }
+
+  header.hero {
+    border: 1px solid var(--line);
+    background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    border-radius: 14px;
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  header.hero h1 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--fg-0);
+  }
+  header.hero .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+  }
+  header.hero p {
+    margin: 0;
+    color: var(--fg-2);
+    max-width: 720px;
+    font-size: 15px;
+  }
+
+  nav.sticky-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(9, 9, 11, 0.85);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 6px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  nav.sticky-tabs button {
+    background: transparent;
+    color: var(--fg-2);
+    border: 0;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.12s, color 0.12s;
+    font-family: inherit;
+  }
+  nav.sticky-tabs button:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  nav.sticky-tabs button.active {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  section.panel {
+    border: 1px solid var(--line);
+    background: var(--bg-1);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  section.panel h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--fg-0);
+  }
+  section.panel .lede {
+    margin: 0 0 20px;
+    color: var(--fg-2);
+    font-size: 13px;
+  }
+
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .col { flex: 1 1 0; min-width: 0; }
+
+  /* ── Workflow tabs ────────────────────────────────────────────────── */
+  .workflow-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--bg-2);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    width: fit-content;
+  }
+  .workflow-tabs button {
+    background: transparent;
+    color: var(--fg-2);
+    border: 0;
+    padding: 7px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+  }
+  .workflow-tabs button.active {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .flow-step {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--fg-1);
+    font-family: var(--mono);
+  }
+  .flow-step.terminal {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: var(--good);
+  }
+  .flow-arrow {
+    color: var(--fg-3);
+    font-family: var(--mono);
+    font-size: 16px;
+  }
+  .flow-meta {
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--bg-2);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--fg-2);
+    border-left: 3px solid var(--accent);
+  }
+  .flow-meta strong { color: var(--fg-0); }
+
+  /* ── STAR+ probe loop SVG ──────────────────────────────────────────── */
+  .loop-wrap { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+  @media (max-width: 800px) { .loop-wrap { grid-template-columns: 1fr; } }
+  .loop-svg-wrap {
+    background: var(--bg-2);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    border: 1px solid var(--line);
+  }
+  .loop-svg-wrap svg { width: 100%; height: auto; display: block; }
+  .branch-node {
+    cursor: pointer;
+    transition: transform 0.12s;
+  }
+  .branch-node:hover .branch-rect { stroke: var(--accent); stroke-width: 2; }
+  .branch-node.selected .branch-rect { stroke: var(--accent); stroke-width: 2.5; }
+  .branch-info {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+  }
+  .branch-info h3 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-0);
+    font-family: var(--mono);
+  }
+  .branch-info .trigger {
+    font-size: 11px;
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .branch-info p {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--fg-1);
+  }
+  .branch-info .citation {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg-3);
+  }
+
+  /* ── Scoring calculator ───────────────────────────────────────────── */
+  .calc-wrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  @media (max-width: 800px) { .calc-wrap { grid-template-columns: 1fr; } }
+  .slider-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 56px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .slider-row:last-child { border-bottom: 0; }
+  .slider-row label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg-1);
+  }
+  .slider-row label .weight {
+    color: var(--fg-3);
+    font-size: 10px;
+    margin-left: 4px;
+  }
+  .slider-row input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  .slider-row .val {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fg-0);
+    text-align: right;
+  }
+  .calc-result {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 18px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .stat-row:last-child { border-bottom: 0; }
+  .stat-row .k { color: var(--fg-2); }
+  .stat-row .v { color: var(--fg-0); font-family: var(--mono); }
+  .composite {
+    margin: 16px 0;
+    text-align: center;
+  }
+  .composite .num {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--fg-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .composite .lbl {
+    font-size: 11px;
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-family: var(--mono);
+  }
+  .badge.STRONG_HIRE { background: rgba(16, 185, 129, 0.15); color: var(--good); border: 1px solid rgba(16, 185, 129, 0.4); }
+  .badge.HIRE { background: rgba(59, 130, 246, 0.15); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.4); }
+  .badge.HOLD { background: rgba(245, 158, 11, 0.15); color: var(--warn); border: 1px solid rgba(245, 158, 11, 0.4); }
+  .badge.NO_HIRE { background: rgba(239, 68, 68, 0.15); color: var(--bad); border: 1px solid rgba(239, 68, 68, 0.4); }
+  .quality-HIGH { color: var(--good); }
+  .quality-MEDIUM { color: var(--warn); }
+  .quality-LOW { color: var(--bad); }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 10px;
+    background: var(--bg-3);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+  }
+  .toggle-row input { accent-color: var(--accent); }
+
+  /* ── Knobs panel ──────────────────────────────────────────────────── */
+  .knob-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .knob {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+  }
+  .knob .name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fg-0);
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+  .knob .desc {
+    font-size: 12px;
+    color: var(--fg-2);
+    margin-bottom: 10px;
+  }
+  .knob .control { display: flex; align-items: center; gap: 10px; }
+  .knob input[type=number] {
+    width: 70px;
+    background: var(--bg-3);
+    color: var(--fg-0);
+    border: 1px solid var(--line-2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .knob input[type=range] { accent-color: var(--accent); flex: 1; }
+  .knob input[type=checkbox] { accent-color: var(--accent); }
+  .knob .default-pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--fg-3);
+    background: var(--bg-3);
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: auto;
+  }
+
+  /* ── URP table ─────────────────────────────────────────────────────── */
+  table.urp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.urp-table th {
+    text-align: left;
+    padding: 8px 10px;
+    background: var(--bg-2);
+    color: var(--fg-2);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--line-2);
+  }
+  table.urp-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.urp-table tr:hover td { background: var(--bg-2); }
+  table.urp-table .code {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 11px;
+  }
+  table.urp-table .toggle-cell { text-align: center; }
+  table.urp-table input[type=checkbox] { accent-color: var(--accent); }
+
+  /* ── LLM chain ────────────────────────────────────────────────────── */
+  .chain {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 800px) { .chain { grid-template-columns: 1fr; } .chain .arrow { display: none; } }
+  .chain-step {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+  }
+  .chain-step .order {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--fg-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .chain-step .label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-0);
+    margin: 4px 0;
+  }
+  .chain-step .detail {
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+  .chain .arrow {
+    color: var(--fg-3);
+    font-family: var(--mono);
+    align-self: center;
+    font-size: 18px;
+  }
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .provider {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .provider:hover { border-color: var(--line-2); }
+  .provider.active { border-color: var(--accent); background: rgba(139, 92, 246, 0.08); }
+  .provider .pname {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-0);
+    margin-bottom: 2px;
+  }
+  .provider .pmeta {
+    font-size: 11px;
+    color: var(--fg-3);
+    font-family: var(--mono);
+  }
+  .provider .pkey {
+    margin-top: 8px;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .provider .pkey.req { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
+  .provider .pkey.opt { background: rgba(16, 185, 129, 0.15); color: var(--good); }
+
+  /* ── Compliance ───────────────────────────────────────────────────── */
+  .comp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .comp-card {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+  }
+  .comp-card .stat {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--fg-0);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .comp-card .label {
+    font-size: 11px;
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .comp-card .desc {
+    font-size: 12px;
+    color: var(--fg-2);
+  }
+  .protected-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: var(--bg-3);
+    color: var(--fg-1);
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+  }
+
+  /* ── Sticky prompt footer ─────────────────────────────────────────── */
+  .prompt-footer {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(15, 15, 18, 0.96);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    border-top: 1px solid var(--line);
+    padding: 14px 24px;
+    z-index: 20;
+  }
+  .prompt-footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .prompt-footer textarea {
+    width: 100%;
+    background: var(--bg-2);
+    color: var(--fg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    resize: vertical;
+    min-height: 64px;
+    max-height: 180px;
+  }
+  .prompt-footer button {
+    background: var(--accent);
+    color: white;
+    border: 0;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 500;
+    font-family: inherit;
+    font-size: 13px;
+    transition: background 0.12s;
+    height: 64px;
+  }
+  .prompt-footer button:hover { background: var(--accent-2); }
+  .prompt-footer .hint {
+    font-size: 11px;
+    color: var(--fg-3);
+    margin-bottom: 4px;
+    grid-column: 1 / -1;
+  }
+
+  /* ── Misc ────────────────────────────────────────────────────────── */
+  .kbd {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--bg-3);
+    border: 1px solid var(--line-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--fg-1);
+  }
+  details.advanced {
+    margin-top: 12px;
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+  details.advanced summary {
+    cursor: pointer;
+    color: var(--fg-2);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="tag">AP API · Architecture Explorer</span>
+  <h1>How the Awesome Person API actually works</h1>
+  <p>An interactive map of the talent assessment engine — from STAR+ probe generation to evidence-weighted scoring to compliance guardrails. Adjust the knobs, click the branches, swap providers. The footer compiles your selections into a prompt you can paste back into the API.</p>
+</header>
+
+<nav class="sticky-tabs" id="tabs">
+  <button data-target="workflows" class="active">Workflows</button>
+  <button data-target="loop">STAR+ Loop</button>
+  <button data-target="scoring">Scoring</button>
+  <button data-target="knobs">Knobs</button>
+  <button data-target="patterns">Reasoning Patterns</button>
+  <button data-target="llm">LLM Providers</button>
+  <button data-target="compliance">Compliance</button>
+</nav>
+
+<!-- ─── 1. Workflows ────────────────────────────────────────────────── -->
+<section class="panel" id="workflows">
+  <h2>1 · Workflows</h2>
+  <p class="lede">Three operating modes share the same evidence-extraction core but differ in framing and phase machine.</p>
+  <div class="workflow-tabs" id="wf-tabs">
+    <button data-wf="simple" class="active">Simple Mode (7-step wizard)</button>
+    <button data-wf="full">Full Platform</button>
+    <button data-wf="profile">Profile Top Performers</button>
+  </div>
+  <div id="wf-flow"></div>
+  <div class="flow-meta" id="wf-meta"></div>
+</section>
+
+<!-- ─── 2. STAR+ Probe Loop ─────────────────────────────────────────── -->
+<section class="panel" id="loop">
+  <h2>2 · STAR+ Probe Loop</h2>
+  <p class="lede">After every candidate response, the engine analyzes evidence + STAR completeness + confidence, then routes the next probe. Click a branch to see what triggers it.</p>
+  <div class="loop-wrap">
+    <div class="loop-svg-wrap">
+      <svg id="loop-svg" viewBox="0 0 600 360" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+            <polygon points="0 0, 8 3, 0 6" fill="#71717a"/>
+          </marker>
+          <marker id="arr-hi" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+            <polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/>
+          </marker>
+        </defs>
+        <!-- center: PRIMARY -->
+        <g class="branch-node" data-branch="primary">
+          <rect class="branch-rect" x="240" y="150" width="120" height="60" rx="8" fill="#16161a" stroke="#3a3a44"/>
+          <text x="300" y="178" text-anchor="middle" fill="#fafafa" font-family="ui-monospace,monospace" font-size="13" font-weight="600">PRIMARY</text>
+          <text x="300" y="195" text-anchor="middle" fill="#a1a1aa" font-family="ui-monospace,monospace" font-size="10">probe trait</text>
+        </g>
+        <!-- analyze response (center-ish) -->
+        <ellipse cx="300" cy="280" rx="74" ry="22" fill="#1c1c22" stroke="#3a3a44"/>
+        <text x="300" y="285" text-anchor="middle" fill="#d4d4d8" font-family="ui-monospace,monospace" font-size="11">analyze response</text>
+
+        <!-- branch: FOLLOW_UP (top-left) -->
+        <g class="branch-node" data-branch="followup">
+          <rect class="branch-rect" x="30" y="30" width="130" height="60" rx="8" fill="#16161a" stroke="#3a3a44"/>
+          <text x="95" y="58" text-anchor="middle" fill="#fafafa" font-family="ui-monospace,monospace" font-size="12" font-weight="600">FOLLOW_UP</text>
+          <text x="95" y="75" text-anchor="middle" fill="#a1a1aa" font-family="ui-monospace,monospace" font-size="10">target STAR gap</text>
+        </g>
+        <!-- branch: REFLECTION (top-right) -->
+        <g class="branch-node" data-branch="reflection">
+          <rect class="branch-rect" x="440" y="30" width="130" height="60" rx="8" fill="#16161a" stroke="#3a3a44"/>
+          <text x="505" y="58" text-anchor="middle" fill="#fafafa" font-family="ui-monospace,monospace" font-size="12" font-weight="600">REFLECTION</text>
+          <text x="505" y="75" text-anchor="middle" fill="#a1a1aa" font-family="ui-monospace,monospace" font-size="10">"+R" probe</text>
+        </g>
+        <!-- branch: RECURSION (bottom-left) -->
+        <g class="branch-node" data-branch="recursion">
+          <rect class="branch-rect" x="30" y="320" width="130" height="32" rx="8" fill="#16161a" stroke="#3a3a44"/>
+          <text x="95" y="340" text-anchor="middle" fill="#fafafa" font-family="ui-monospace,monospace" font-size="12" font-weight="600">RECURSION</text>
+        </g>
+        <!-- branch: COMPLETE (bottom-right) -->
+        <g class="branch-node" data-branch="complete">
+          <rect class="branch-rect" x="440" y="320" width="130" height="32" rx="8" fill="#0a1f1a" stroke="#10b981"/>
+          <text x="505" y="340" text-anchor="middle" fill="#10b981" font-family="ui-monospace,monospace" font-size="12" font-weight="600">COMPLETE</text>
+        </g>
+
+        <!-- arrows -->
+        <path d="M 300 210 Q 300 250 300 258" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M 240 270 Q 180 200 160 90" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M 360 270 Q 420 200 440 90" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M 240 290 Q 180 320 160 332" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M 360 290 Q 420 320 440 332" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <!-- loop back from FOLLOW_UP and REFLECTION/RECURSION to PRIMARY -->
+        <path d="M 95 30 Q 95 5 300 5 Q 300 5 300 150" fill="none" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3,4" marker-end="url(#arr)"/>
+        <path d="M 505 30 Q 505 5 300 5" fill="none" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3,4"/>
+      </svg>
+    </div>
+    <div id="branch-info" class="branch-info"></div>
+  </div>
+</section>
+
+<!-- ─── 3. Scoring Calculator ───────────────────────────────────────── -->
+<section class="panel" id="scoring">
+  <h2>3 · Evidence-Weighted Scoring</h2>
+  <p class="lede">Five evidence types, each with a fixed reliability weight. Adjust the counts; the composite score, evidence quality, and recommendation update live. Counter-indicator HIGH severity forces HOLD.</p>
+  <div class="calc-wrap">
+    <div>
+      <div class="slider-row">
+        <label>OBSERVED <span class="weight">×1.2</span></label>
+        <input type="range" min="0" max="20" value="2" id="ev-OBSERVED"/>
+        <div class="val" id="ev-OBSERVED-v">2</div>
+      </div>
+      <div class="slider-row">
+        <label>BEHAVIORAL <span class="weight">×1.0</span></label>
+        <input type="range" min="0" max="20" value="6" id="ev-BEHAVIORAL"/>
+        <div class="val" id="ev-BEHAVIORAL-v">6</div>
+      </div>
+      <div class="slider-row">
+        <label>HYPOTHETICAL <span class="weight">×0.5</span></label>
+        <input type="range" min="0" max="20" value="2" id="ev-HYPOTHETICAL"/>
+        <div class="val" id="ev-HYPOTHETICAL-v">2</div>
+      </div>
+      <div class="slider-row">
+        <label>SELF_REPORT <span class="weight">×0.3</span></label>
+        <input type="range" min="0" max="20" value="3" id="ev-SELF_REPORT"/>
+        <div class="val" id="ev-SELF_REPORT-v">3</div>
+      </div>
+      <div class="slider-row">
+        <label>OPINION <span class="weight">×0.2</span></label>
+        <input type="range" min="0" max="20" value="1" id="ev-OPINION"/>
+        <div class="val" id="ev-OPINION-v">1</div>
+      </div>
+      <div class="slider-row">
+        <label>raw trait avg</label>
+        <input type="range" min="1" max="5" step="0.1" value="3.6" id="raw-trait"/>
+        <div class="val" id="raw-trait-v">3.6</div>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="counter-flag"/>
+        <label for="counter-flag">Counter-indicator triggered (HIGH severity → forces HOLD)</label>
+      </div>
+    </div>
+    <div class="calc-result">
+      <div class="composite">
+        <div class="num" id="composite-num">-</div>
+        <div class="lbl">composite score (0–100)</div>
+      </div>
+      <div style="text-align:center; margin-bottom: 16px;">
+        <span class="badge" id="rec-badge">-</span>
+      </div>
+      <div class="stat-row"><span class="k">avg evidence weight</span><span class="v" id="stat-avgw">-</span></div>
+      <div class="stat-row"><span class="k">total evidence items</span><span class="v" id="stat-total">-</span></div>
+      <div class="stat-row"><span class="k">evidence quality</span><span class="v" id="stat-quality">-</span></div>
+      <div class="stat-row"><span class="k">confidence proxy</span><span class="v" id="stat-conf">-</span></div>
+      <div class="stat-row"><span class="k">behavioral floor met</span><span class="v" id="stat-floor">-</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 4. Knobs ────────────────────────────────────────────────────── -->
+<section class="panel" id="knobs">
+  <h2>4 · Configurable Knobs</h2>
+  <p class="lede">Every parameter on <code style="font-family:var(--mono);font-size:12px;color:var(--fg-1)">InterviewConfig</code>. Defaults shown on the right of each card; adjust to see how the prompt at the bottom updates.</p>
+  <div class="knob-grid" id="knob-grid"></div>
+</section>
+
+<!-- ─── 5. Patterns ─────────────────────────────────────────────────── -->
+<section class="panel" id="patterns">
+  <h2>5 · Universal Reasoning Patterns</h2>
+  <p class="lede">Eight patterns drive probe generation. Selection is rule-based — the engine inspects context after each response and turns on the patterns whose triggers match. Toggle one off here to remove its rule from the prompt.</p>
+  <table class="urp-table">
+    <thead><tr><th>Code</th><th>Name</th><th>Trigger condition</th><th>Effect on next probe</th><th>Active</th></tr></thead>
+    <tbody id="urp-tbody"></tbody>
+  </table>
+</section>
+
+<!-- ─── 6. LLM Providers ────────────────────────────────────────────── -->
+<section class="panel" id="llm">
+  <h2>6 · LLM Provider Resolution</h2>
+  <p class="lede">Per-request configuration falls through three layers. Click a provider card to mark it active for this run.</p>
+  <div class="chain">
+    <div class="chain-step">
+      <div class="order">First</div>
+      <div class="label">Per-org DB</div>
+      <div class="detail">Fernet-encrypted in <code>Organization.settings["llm"]</code>. Set via Settings → AI tab.</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="chain-step">
+      <div class="order">Fallback</div>
+      <div class="label">Environment</div>
+      <div class="detail"><code>LLM_PROVIDER</code>, <code>LLM_MODEL</code>, provider-specific <code>*_API_KEY</code></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="chain-step">
+      <div class="order">Default</div>
+      <div class="label">Anthropic</div>
+      <div class="detail">Uses <code>ANTHROPIC_API_KEY</code> if set, else 500.</div>
+    </div>
+  </div>
+  <div class="provider-grid" id="provider-grid"></div>
+</section>
+
+<!-- ─── 7. Compliance ───────────────────────────────────────────────── -->
+<section class="panel" id="compliance">
+  <h2>7 · Compliance Guardrails</h2>
+  <p class="lede">Hardcoded fairness checks run in two places: probe-time (before sending to candidate) and analysis-time (when extracting evidence). Selection-rate disparity is monitored separately.</p>
+  <div class="comp-grid">
+    <div class="comp-card">
+      <div class="stat">88</div>
+      <div class="label">Prohibited topics</div>
+      <div class="desc">Probes scanned for protected-info elicitation. Violations blocked at HIGH severity.</div>
+    </div>
+    <div class="comp-card">
+      <div class="stat">10</div>
+      <div class="label">Warning phrases</div>
+      <div class="desc">Soft flags ("tell me about yourself", "where did you grow up") — surfaced for review.</div>
+    </div>
+    <div class="comp-card">
+      <div class="stat">0.80</div>
+      <div class="label">Four-fifths threshold</div>
+      <div class="desc">Selection rate ratio (lower group / highest group). Below 0.80 triggers an alert; below 0.60 escalates to REQUIRED action.</div>
+    </div>
+    <div class="comp-card">
+      <div class="stat">30</div>
+      <div class="label">Min sample per group</div>
+      <div class="desc">Below this, the impact ratio is reported but flagged as not statistically valid.</div>
+    </div>
+  </div>
+  <div style="margin-top: 16px;">
+    <div style="font-size: 12px; color: var(--fg-2); margin-bottom: 6px;">Protected classes tracked (opt-in, separate from hiring decision):</div>
+    <div class="protected-pills">
+      <span class="pill">GENDER</span>
+      <span class="pill">RACE_ETHNICITY</span>
+      <span class="pill">AGE_GROUP</span>
+      <span class="pill">DISABILITY</span>
+      <span class="pill">VETERAN_STATUS</span>
+    </div>
+  </div>
+  <details class="advanced">
+    <summary>Evidence exclusion rule</summary>
+    <p style="font-size:12px;color:var(--fg-2);margin:10px 0 0;">When response analysis surfaces evidence containing a prohibited topic, the engine sets the action <code>EXCLUDE_FROM_SCORING</code> and the evidence item is dropped from the trait score — but the rest of the response is still analyzed. This preserves an auditable chain: every excluded item is logged with its trigger.</p>
+  </details>
+</section>
+
+</div> <!-- /wrap -->
+
+<!-- ─── Sticky prompt footer ─────────────────────────────────────────── -->
+<div class="prompt-footer">
+  <div class="prompt-footer-inner">
+    <div class="hint">Generated prompt — paste this into Claude or feed to the AP API config endpoint:</div>
+    <textarea id="prompt-out" readonly></textarea>
+    <button id="copy-btn">Copy prompt</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ── Data ────────────────────────────────────────────────────────────
+const WORKFLOWS = {
+  simple: {
+    title: "Simple Mode — 7-step wizard",
+    note: "Best for one-off assessments and demos. Calls /api/v1/simple/* endpoints.",
+    steps: [
+      "Create assessment (job description)",
+      "Confirm extracted requirements",
+      "Add candidates (+ optional resume)",
+      "Select up to 5 traits",
+      "Send magic-link invites",
+      "View ranked results",
+      "Export PDF report"
+    ]
+  },
+  full: {
+    title: "Full Platform — interview state machine",
+    note: "Backed by InterviewEngine. Phases come from app/services/interview_engine.py.",
+    steps: [
+      "NOT_STARTED",
+      "INTRODUCTION",
+      "TRAIT_ASSESSMENT",
+      "CANDIDATE_QUESTIONS",
+      "CLOSING",
+      "COMPLETED"
+    ]
+  },
+  profile: {
+    title: "Profile Top Performers — training-framed extraction",
+    note: "Different framing (\"help train an AI system\"), longer rapport phase, signal extraction instead of scoring.",
+    steps: [
+      "NOT_STARTED",
+      "INTRODUCTION",
+      "RAPPORT_BUILDING",
+      "TRAIT_EXPLORATION",
+      "DEEP_DIVE",
+      "REFLECTION",
+      "CLOSING",
+      "COMPLETED"
+    ]
+  }
+};
+
+const BRANCHES = {
+  primary: {
+    name: "PRIMARY",
+    trigger: "ENTRY",
+    text: "First probe for a trait. Generated from the rubric's primary_probes plus pattern-driven framing (always MC35; MC24 if first probe of trait).",
+    file: "app/services/interview_engine.py — _generate_primary_probe"
+  },
+  followup: {
+    name: "FOLLOW_UP",
+    trigger: "MISSING STAR COMPONENT · OR · SURFACE-LEVEL RESPONSE",
+    text: "Targets the weakest STAR component (situation/task/action/result) or escalates depth if last_response_depth == SURFACE. Counts against max_follow_ups_per_trait (default 3).",
+    file: "interview_engine.py:381–391  ·  pattern: MC38"
+  },
+  reflection: {
+    name: "REFLECTION",
+    trigger: "REQUIRE_REFLECTION = TRUE  ·  REFLECTION NOT YET COVERED",
+    text: "The \"+R\" extension of STAR. \"What would you do differently?\" — surfaces self-awareness. Skipped if the config flag is off.",
+    file: "interview_engine.py:403–405"
+  },
+  recursion: {
+    name: "RECURSION",
+    trigger: "CONFIDENCE < CONFIDENCE_THRESHOLD_FOR_RECURSION (default 0.6)",
+    text: "Asks for a second example to test pattern consistency. Lower the threshold to be stricter (more recursion); raise it to move on faster.",
+    file: "interview_engine.py:408–411"
+  },
+  complete: {
+    name: "COMPLETE",
+    trigger: "BEHAVIORAL_EVIDENCE_COUNT ≥ MINIMUM_BEHAVIORAL_EVIDENCE",
+    text: "Trait closes when the floor is met (default: 1 behavioral evidence item). Engine advances to the next trait or to CANDIDATE_QUESTIONS.",
+    file: "interview_engine.py:414–416"
+  }
+};
+
+const KNOBS = [
+  { id: "max_duration_minutes", default: 60, kind: "num", min: 15, max: 180, step: 5,
+    desc: "Hard cap on total interview length. Hit it → engine moves to CLOSING regardless of trait completion." },
+  { id: "max_follow_ups_per_trait", default: 3, kind: "num", min: 0, max: 8, step: 1,
+    desc: "Limits PRIMARY → FOLLOW_UP loop. Raise for higher-stakes roles, lower for time-boxed screens." },
+  { id: "confidence_threshold_for_recursion", default: 0.6, kind: "range", min: 0, max: 1, step: 0.05,
+    desc: "Below this confidence after PRIMARY+FOLLOW_UPs, the engine asks for a second example." },
+  { id: "minimum_behavioral_evidence", default: 1, kind: "num", min: 1, max: 5, step: 1,
+    desc: "Behavioral or observed items required before a trait can close." },
+  { id: "require_reflection", default: true, kind: "bool",
+    desc: "Add the \"+Reflection\" probe after every trait. Off = STAR only." },
+  { id: "enable_resume_customization", default: true, kind: "bool",
+    desc: "When a resume is parsed, anchor up to 2 elements (companies, achievements) per probe." },
+  { id: "enable_conflict_probing", default: true, kind: "bool",
+    desc: "Activate IP7 when responses lack tension/failure — explicitly probes for hard moments." }
+];
+
+const PATTERNS = [
+  { code: "MC24", name: "Assumption Surfacing", trigger: "first probe for trait", effect: "challenge implicit assumptions in the rubric question", active: true },
+  { code: "MC35", name: "Representation Choice", trigger: "every probe (always on)", effect: "select the best probe shape (open / scenario / counterfactual)", active: true },
+  { code: "MC38", name: "Abstraction Level", trigger: "last response = SURFACE depth", effect: "force a more concrete follow-up at lower abstraction", active: true },
+  { code: "MC44", name: "Solution Space", trigger: "confidence < 0.5", effect: "explore alternative interpretations of the response", active: true },
+  { code: "IP3",  name: "Active Listening", trigger: "OmissionAnalysis flags missing components", effect: "explicitly probe what was avoided", active: true },
+  { code: "IP7",  name: "Conflict Exploration", trigger: "response is all-smooth (no failure/tension)", effect: "ask for a hard moment, conflict, or failure", active: true },
+  { code: "IP11", name: "Trust Calibration", trigger: "last evidence type = SELF_REPORT", effect: "demand a behavioral example to back the claim", active: true },
+  { code: "SP8",  name: "Risk Identification", trigger: "trait ∈ {RESILIENCE, ADAPTABILITY, INITIATIVE}", effect: "probe failure modes & risk-tolerance scenarios", active: true }
+];
+
+const PROVIDERS = [
+  { id: "anthropic", name: "Anthropic", model: "claude-sonnet-4-x", auth: "req", note: "Default. Native API." },
+  { id: "openai", name: "OpenAI", model: "gpt-4o", auth: "req", note: "Native API. Highest model variety." },
+  { id: "google", name: "Google AI", model: "gemini-1.5-pro", auth: "req", note: "Native API. \"models/\" prefix stripped automatically." },
+  { id: "groq", name: "Groq", model: "llama-3.3-70b", auth: "req", note: "OpenAI-compatible. Sub-second latency." },
+  { id: "openrouter", name: "OpenRouter", model: "any", auth: "req", note: "OpenAI-compatible. Multi-model gateway." },
+  { id: "ollama", name: "Ollama", model: "llama3.2", auth: "opt", note: "OpenAI-compatible. Local / self-hosted, no key." }
+];
+
+const DEFAULT_PROVIDER = "anthropic";
+
+// ── State ───────────────────────────────────────────────────────────
+const state = {
+  workflow: "simple",
+  branch: "primary",
+  evidence: { OBSERVED: 2, BEHAVIORAL: 6, HYPOTHETICAL: 2, SELF_REPORT: 3, OPINION: 1 },
+  raw_trait: 3.6,
+  counterFlag: false,
+  knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.default])),
+  patterns: Object.fromEntries(PATTERNS.map(p => [p.code, p.active])),
+  provider: DEFAULT_PROVIDER
+};
+
+// ── Helpers ─────────────────────────────────────────────────────────
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+// ── Tabs (smooth scroll) ────────────────────────────────────────────
+$$('#tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('#tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const target = document.getElementById(btn.dataset.target);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+// ── 1. Workflows ────────────────────────────────────────────────────
+function renderWorkflow() {
+  const wf = WORKFLOWS[state.workflow];
+  const flow = wf.steps.map((s, i) => {
+    const isLast = i === wf.steps.length - 1;
+    const cls = isLast ? "flow-step terminal" : "flow-step";
+    return `<div class="${cls}">${s}</div>` + (isLast ? "" : `<span class="flow-arrow">→</span>`);
+  }).join("");
+  $('#wf-flow').innerHTML = `<div class="flow">${flow}</div>`;
+  $('#wf-meta').innerHTML = `<strong>${wf.title}</strong> — ${wf.note}`;
+}
+$$('#wf-tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('#wf-tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.workflow = btn.dataset.wf;
+    renderWorkflow();
+    updatePrompt();
+  });
+});
+
+// ── 2. STAR+ branch info ────────────────────────────────────────────
+function renderBranch() {
+  const b = BRANCHES[state.branch];
+  $('#branch-info').innerHTML = `
+    <div class="trigger">${b.trigger}</div>
+    <h3>${b.name}</h3>
+    <p>${b.text}</p>
+    <div class="citation">${b.file}</div>`;
+  $$('.branch-node').forEach(n => n.classList.toggle('selected', n.dataset.branch === state.branch));
+}
+$$('.branch-node').forEach(node => {
+  node.addEventListener('click', () => {
+    state.branch = node.dataset.branch;
+    renderBranch();
+    updatePrompt();
+  });
+});
+
+// ── 3. Scoring calculator ───────────────────────────────────────────
+const WEIGHTS = { OBSERVED: 1.2, BEHAVIORAL: 1.0, HYPOTHETICAL: 0.5, SELF_REPORT: 0.3, OPINION: 0.2 };
+
+function computeScore() {
+  const e = state.evidence;
+  const total = Object.values(e).reduce((a, b) => a + b, 0);
+  let weightedSum = 0;
+  for (const k in e) weightedSum += e[k] * WEIGHTS[k];
+  const avgWeight = total > 0 ? weightedSum / total : 0;
+  const conf = Math.min(1, avgWeight / 1.0);
+  let quality = "LOW";
+  if (conf >= 0.7) quality = "HIGH";
+  else if (conf >= 0.4) quality = "MEDIUM";
+  let calibrated = state.raw_trait;
+  const behavioralCount = e.BEHAVIORAL + e.OBSERVED;
+  if (behavioralCount === 0) calibrated = Math.max(1, calibrated - 1);
+  const composite = Math.round(((calibrated - 1) / 4) * 100);
+  let rec;
+  if (state.counterFlag) rec = "HOLD";
+  else if (composite >= 75 && conf >= 0.6) rec = "STRONG_HIRE";
+  else if (composite >= 60 && conf >= 0.5) rec = "HIRE";
+  else if (composite >= 40) rec = "HOLD";
+  else rec = "NO_HIRE";
+  return { total, avgWeight, conf, quality, calibrated, composite, rec, behavioralFloorMet: behavioralCount >= state.knobs.minimum_behavioral_evidence };
+}
+
+function renderScoring() {
+  const r = computeScore();
+  for (const k in state.evidence) {
+    $('#ev-' + k).value = state.evidence[k];
+    $('#ev-' + k + '-v').textContent = state.evidence[k];
+  }
+  $('#raw-trait').value = state.raw_trait;
+  $('#raw-trait-v').textContent = state.raw_trait.toFixed(1);
+  $('#counter-flag').checked = state.counterFlag;
+  $('#composite-num').textContent = r.composite;
+  const badge = $('#rec-badge');
+  badge.textContent = r.rec;
+  badge.className = 'badge ' + r.rec;
+  $('#stat-avgw').textContent = r.avgWeight.toFixed(2);
+  $('#stat-total').textContent = r.total;
+  const qEl = $('#stat-quality');
+  qEl.textContent = r.quality;
+  qEl.className = 'v quality-' + r.quality;
+  $('#stat-conf').textContent = r.conf.toFixed(2);
+  $('#stat-floor').textContent = r.behavioralFloorMet ? 'yes' : 'no';
+}
+
+['OBSERVED', 'BEHAVIORAL', 'HYPOTHETICAL', 'SELF_REPORT', 'OPINION'].forEach(k => {
+  $('#ev-' + k).addEventListener('input', e => {
+    state.evidence[k] = parseInt(e.target.value, 10);
+    renderScoring(); updatePrompt();
+  });
+});
+$('#raw-trait').addEventListener('input', e => {
+  state.raw_trait = parseFloat(e.target.value);
+  renderScoring(); updatePrompt();
+});
+$('#counter-flag').addEventListener('change', e => {
+  state.counterFlag = e.target.checked;
+  renderScoring(); updatePrompt();
+});
+
+// ── 4. Knobs ────────────────────────────────────────────────────────
+function renderKnobs() {
+  const html = KNOBS.map(k => {
+    const v = state.knobs[k.id];
+    let ctrl = '';
+    if (k.kind === 'bool') {
+      ctrl = `<input type="checkbox" id="kn-${k.id}" ${v ? 'checked' : ''}/>
+              <span style="font-family:var(--mono);font-size:12px;color:var(--fg-1)">${v ? 'true' : 'false'}</span>`;
+    } else if (k.kind === 'range') {
+      ctrl = `<input type="range" min="${k.min}" max="${k.max}" step="${k.step}" value="${v}" id="kn-${k.id}"/>
+              <input type="number" min="${k.min}" max="${k.max}" step="${k.step}" value="${v}" id="kn-${k.id}-n"/>`;
+    } else {
+      ctrl = `<input type="range" min="${k.min}" max="${k.max}" step="${k.step}" value="${v}" id="kn-${k.id}"/>
+              <input type="number" min="${k.min}" max="${k.max}" step="${k.step}" value="${v}" id="kn-${k.id}-n"/>`;
+    }
+    return `<div class="knob">
+      <div style="display:flex; align-items:center;">
+        <div class="name">${k.id}</div>
+        <span class="default-pill">default ${String(k.default)}</span>
+      </div>
+      <div class="desc">${k.desc}</div>
+      <div class="control">${ctrl}</div>
+    </div>`;
+  }).join('');
+  $('#knob-grid').innerHTML = html;
+  KNOBS.forEach(k => {
+    if (k.kind === 'bool') {
+      $('#kn-' + k.id).addEventListener('change', e => {
+        state.knobs[k.id] = e.target.checked;
+        renderKnobs(); updatePrompt();
+      });
+    } else {
+      const range = $('#kn-' + k.id);
+      const num = $('#kn-' + k.id + '-n');
+      const handler = val => {
+        let v = k.kind === 'num' ? parseInt(val, 10) : parseFloat(val);
+        if (isNaN(v)) v = k.default;
+        v = Math.max(k.min, Math.min(k.max, v));
+        state.knobs[k.id] = v;
+        range.value = v;
+        num.value = v;
+        if (k.id === 'minimum_behavioral_evidence') renderScoring();
+        updatePrompt();
+      };
+      range.addEventListener('input', e => handler(e.target.value));
+      num.addEventListener('input', e => handler(e.target.value));
+    }
+  });
+}
+
+// ── 5. Patterns ─────────────────────────────────────────────────────
+function renderPatterns() {
+  $('#urp-tbody').innerHTML = PATTERNS.map(p => `
+    <tr>
+      <td><span class="code">${p.code}</span></td>
+      <td>${p.name}</td>
+      <td>${p.trigger}</td>
+      <td>${p.effect}</td>
+      <td class="toggle-cell">
+        <input type="checkbox" data-code="${p.code}" ${state.patterns[p.code] ? 'checked' : ''}/>
+      </td>
+    </tr>
+  `).join('');
+  $$('#urp-tbody input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', e => {
+      state.patterns[e.target.dataset.code] = e.target.checked;
+      updatePrompt();
+    });
+  });
+}
+
+// ── 6. Providers ────────────────────────────────────────────────────
+function renderProviders() {
+  $('#provider-grid').innerHTML = PROVIDERS.map(p => `
+    <div class="provider ${state.provider === p.id ? 'active' : ''}" data-id="${p.id}">
+      <div class="pname">${p.name}</div>
+      <div class="pmeta">${p.model}</div>
+      <span class="pkey ${p.auth}">${p.auth === 'req' ? 'API key required' : 'no key'}</span>
+      <div style="font-size:11px;color:var(--fg-2);margin-top:8px;">${p.note}</div>
+    </div>
+  `).join('');
+  $$('.provider').forEach(el => el.addEventListener('click', () => {
+    state.provider = el.dataset.id;
+    renderProviders(); updatePrompt();
+  }));
+}
+
+// ── Prompt synthesis ────────────────────────────────────────────────
+function updatePrompt() {
+  const parts = [];
+  parts.push(`Configure an AP API ${WORKFLOWS[state.workflow].title.split(' — ')[0]} run.`);
+
+  // Provider
+  if (state.provider !== DEFAULT_PROVIDER) {
+    const p = PROVIDERS.find(x => x.id === state.provider);
+    parts.push(`Use the ${p.name} provider (${p.model})${p.auth === 'opt' ? ' — no API key needed' : ''}.`);
+  }
+
+  // Knobs that diverge from defaults
+  const knobDiffs = KNOBS
+    .filter(k => state.knobs[k.id] !== k.default)
+    .map(k => `${k.id} = ${state.knobs[k.id]}`);
+  if (knobDiffs.length) {
+    parts.push(`Override interview config: ${knobDiffs.join(', ')}.`);
+  }
+
+  // Patterns toggled off
+  const offPatterns = PATTERNS.filter(p => !state.patterns[p.code]).map(p => p.code);
+  if (offPatterns.length) {
+    parts.push(`Disable reasoning patterns: ${offPatterns.join(', ')}.`);
+  }
+
+  // Scoring sketch
+  const r = computeScore();
+  parts.push(`Sample evidence mix yields composite ${r.composite}/100 → ${r.rec} (quality: ${r.quality}, conf ${r.conf.toFixed(2)})${state.counterFlag ? ' with a counter-indicator override forcing HOLD' : ''}.`);
+
+  // Branch
+  if (state.branch !== 'primary') {
+    parts.push(`Inspecting probe-loop branch: ${state.branch.toUpperCase()}.`);
+  }
+
+  $('#prompt-out').value = parts.join('\n\n');
+}
+
+// ── Copy ────────────────────────────────────────────────────────────
+$('#copy-btn').addEventListener('click', async () => {
+  const ta = $('#prompt-out');
+  ta.select();
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    const btn = $('#copy-btn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1200);
+  } catch { document.execCommand('copy'); }
+});
+
+// ── Initial render ──────────────────────────────────────────────────
+renderWorkflow();
+renderBranch();
+renderScoring();
+renderKnobs();
+renderPatterns();
+renderProviders();
+updatePrompt();
+</script>
+</body>
+</html>
