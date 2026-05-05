@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AP API — Demo Walkthrough</title>
+<style>
+  :root {
+    --bg-0: #0a0a0c;
+    --bg-1: #14141a;
+    --bg-2: #1c1c24;
+    --bg-3: #25252e;
+    --line: #2c2c36;
+    --line-2: #3a3a48;
+    --fg-0: #fafafa;
+    --fg-1: #d4d4dc;
+    --fg-2: #a4a4ac;
+    --fg-3: #74747c;
+    --accent: #8b5cf6;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg-0); color: var(--fg-1);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  .stage {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    max-width: 100vw;
+  }
+  header {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-1);
+  }
+  header .title { font-size: 14px; font-weight: 600; color: var(--fg-0); }
+  header .title .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent);
+    font-size: 10px;
+    margin-right: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    font-weight: 500;
+  }
+  header .counter {
+    font-size: 12px; color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, monospace;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 0;
+    overflow: hidden;
+  }
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  }
+  .canvas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-0);
+    padding: 24px;
+    overflow: hidden;
+    position: relative;
+  }
+  .canvas img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: block;
+    object-fit: contain;
+  }
+  .nav-zone {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 80px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(250, 250, 250, 0);
+    transition: color 0.15s, background 0.15s;
+    font-size: 32px;
+    user-select: none;
+  }
+  .nav-zone:hover { color: rgba(250, 250, 250, 0.5); }
+  .nav-zone.left { left: 0; background: linear-gradient(to right, rgba(0,0,0,0.4), transparent); }
+  .nav-zone.right { right: 0; background: linear-gradient(to left, rgba(0,0,0,0.4), transparent); }
+  .nav-zone.left:hover { background: linear-gradient(to right, rgba(0,0,0,0.55), transparent); }
+  .nav-zone.right:hover { background: linear-gradient(to left, rgba(0,0,0,0.55), transparent); }
+  aside.notes {
+    background: var(--bg-1);
+    border-left: 1px solid var(--line);
+    padding: 24px;
+    overflow-y: auto;
+  }
+  aside.notes h2 {
+    font-size: 18px;
+    margin: 0 0 8px;
+    color: var(--fg-0);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+  aside.notes .step-num {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-3);
+    margin-bottom: 8px;
+    font-family: ui-monospace, monospace;
+  }
+  aside.notes p {
+    color: var(--fg-1);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  footer {
+    padding: 12px 24px;
+    border-top: 1px solid var(--line);
+    background: var(--bg-1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .progress {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-3);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 0 16px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.2s;
+  }
+  .controls { display: flex; gap: 8px; }
+  .controls button {
+    background: var(--bg-3);
+    color: var(--fg-1);
+    border: 1px solid var(--line-2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .controls button:hover { background: var(--bg-2); color: var(--fg-0); }
+  .kbd {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    background: var(--bg-3);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--fg-2);
+  }
+  .empty {
+    color: var(--fg-2);
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .empty p { margin: 8px 0; }
+  .empty code {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--bg-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+  /* Thumbnail strip when overview is open */
+  .overview {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 12, 0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+    overflow-y: auto;
+    padding: 40px;
+    display: none;
+  }
+  .overview.open { display: block; }
+  .overview .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .thumb {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .thumb:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .thumb img { width: 100%; display: block; }
+  .thumb .meta {
+    padding: 10px 14px;
+    border-top: 1px solid var(--line);
+  }
+  .thumb .meta .num {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--fg-3);
+  }
+  .thumb .meta .t {
+    font-size: 13px;
+    color: var(--fg-0);
+    margin-top: 2px;
+  }
+  .overview .close-btn {
+    position: fixed;
+    top: 24px; right: 24px;
+    background: var(--bg-2);
+    color: var(--fg-0);
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <header>
+    <div class="title"><span class="tag">AP API</span>Demo Walkthrough</div>
+    <div>
+      <span class="counter" id="counter">– / –</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="canvas" id="canvas">
+      <div class="empty" id="empty">
+        <p>No screenshots loaded yet.</p>
+        <p>Run the demo script: <code>cd /tmp/apapi-demo-runner && node demo.js</code></p>
+        <p style="margin-top:24px;font-size:12px;color:var(--fg-3);">After it finishes, refresh this page.</p>
+      </div>
+      <div class="nav-zone left" id="prev-zone">‹</div>
+      <div class="nav-zone right" id="next-zone">›</div>
+    </div>
+    <aside class="notes" id="notes">
+      <div class="empty">
+        <p style="font-size:13px">Captions appear here once the deck loads.</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="controls">
+      <button id="overview-btn">Overview</button>
+      <button id="reload-btn">Reload</button>
+    </div>
+    <div class="progress"><div class="progress-bar" id="progress"></div></div>
+    <div style="font-size:10px;color:var(--fg-3);">
+      <span class="kbd">←</span> <span class="kbd">→</span> nav · <span class="kbd">F</span> fullscreen · <span class="kbd">O</span> overview
+    </div>
+  </footer>
+</div>
+
+<div class="overview" id="overview">
+  <button class="close-btn" id="overview-close">Close (Esc)</button>
+  <h2 style="color:var(--fg-0);text-align:center;margin:0 0 32px">All slides</h2>
+  <div class="grid" id="overview-grid"></div>
+</div>
+
+<script src="./captions.js"></script>
+<script>
+// Slides come from window.SLIDES (defined in captions.js).
+// Using a script tag instead of fetch() so the deck works when opened
+// directly from disk (file://) — fetch() is blocked there by CORS.
+let slides = [];
+let i = 0;
+
+function load() {
+  if (typeof window.SLIDES === 'undefined' || window.SLIDES.length === 0) {
+    console.warn('No SLIDES found. Run the demo script and refresh.');
+    return;
+  }
+  slides = window.SLIDES;
+  document.getElementById('empty').style.display = 'none';
+  render();
+}
+
+function render() {
+  if (!slides.length) return;
+  if (i < 0) i = 0;
+  if (i >= slides.length) i = slides.length - 1;
+  const s = slides[i];
+  const canvas = document.getElementById('canvas');
+  // remove existing img
+  const existing = canvas.querySelector('img');
+  if (existing) existing.remove();
+  const img = document.createElement('img');
+  img.src = `./screenshots/${s.filename}`;
+  img.alt = s.title;
+  canvas.insertBefore(img, canvas.querySelector('.nav-zone'));
+  document.getElementById('notes').innerHTML = `
+    <div class="step-num">Step ${i + 1} of ${slides.length}</div>
+    <h2>${s.title}</h2>
+    <p>${s.narrative}</p>`;
+  document.getElementById('counter').textContent = `${i + 1} / ${slides.length}`;
+  document.getElementById('progress').style.width = `${((i + 1) / slides.length) * 100}%`;
+}
+
+function next() { if (i < slides.length - 1) { i++; render(); } }
+function prev() { if (i > 0) { i--; render(); } }
+function jump(n) { i = n; render(); closeOverview(); }
+
+function openOverview() {
+  const grid = document.getElementById('overview-grid');
+  grid.innerHTML = slides.map((s, n) => `
+    <div class="thumb" data-i="${n}">
+      <img src="./screenshots/${s.filename}" alt="${s.title}"/>
+      <div class="meta">
+        <div class="num">${String(n + 1).padStart(2, '0')}</div>
+        <div class="t">${s.title}</div>
+      </div>
+    </div>`).join('');
+  grid.querySelectorAll('.thumb').forEach(el => {
+    el.addEventListener('click', () => jump(parseInt(el.dataset.i, 10)));
+  });
+  document.getElementById('overview').classList.add('open');
+}
+function closeOverview() {
+  document.getElementById('overview').classList.remove('open');
+}
+
+document.getElementById('prev-zone').addEventListener('click', prev);
+document.getElementById('next-zone').addEventListener('click', next);
+document.getElementById('reload-btn').addEventListener('click', load);
+document.getElementById('overview-btn').addEventListener('click', openOverview);
+document.getElementById('overview-close').addEventListener('click', closeOverview);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft') prev();
+  else if (e.key === 'f' || e.key === 'F') {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  }
+  else if (e.key === 'o' || e.key === 'O') openOverview();
+  else if (e.key === 'Escape') closeOverview();
+  else if (e.key === 'Home') { i = 0; render(); }
+  else if (e.key === 'End') { i = slides.length - 1; render(); }
+});
+
+load();
+</script>
+</body>
+</html>

@@ -25,9 +25,10 @@ If you're a small team that wants the rigor of an enterprise assessment platform
 
 ## See it before you install it
 
-[**Open the architecture explorer →**](docs/playground.html)
+[**Open the architecture explorer →**](docs/playground.html) · [**Open the demo walkthrough →**](docs/demo/deck.html)
 
-A single-page interactive map of every flow, every adjustable knob, and the live scoring math. Adjust evidence counts and watch the recommendation flip; toggle reasoning patterns and watch which probes fire. Useful before reading any code.
+- The **architecture explorer** is a single-page interactive map of every flow, every adjustable knob, and the live scoring math. Adjust evidence counts and watch the recommendation flip; toggle reasoning patterns and watch which probes fire.
+- The **demo walkthrough** is a 21-slide Playwright-captured tour of the Simple Mode flow: admin login → AI requirement extraction → magic-link invite → candidate interview → results page with PDF export. Re-runnable via [`docs/demo/demo.js`](docs/demo/demo.js); see [`docs/demo/README.md`](docs/demo/README.md) for setup.
 
 ---
 
