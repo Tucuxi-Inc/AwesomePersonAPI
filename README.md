@@ -1,1213 +1,451 @@
-# AP API - Awesome Person API
+# AP API — Awesome Person API
 
-A comprehensive talent assessment platform implementing evidence-based behavioral interviews using the STAR+ methodology and Universal Reasoning Patterns.
+> Hire great teams by listening for evidence, not impressions.
 
-## Overview
+The AP API is an open-source talent assessment platform that runs evidence-based behavioral interviews using the STAR+ methodology and Universal Reasoning Patterns. It does two things you usually pay enterprise vendors for, and it does them with a paper trail you can defend in any audit:
 
-The AP API (Awesome Person API) is a talent assessment platform with two primary workflows:
+1. **Profile your top performers** — turn the people who already do the job well into a research-backed rubric describing exactly which traits matter, with anchors and probes.
+2. **Assess candidates** against that rubric (or one of the built-in research-based defaults) through an AI-driven behavioral interview that traces every score back to a specific moment in the conversation.
 
-1. **Profile Development**: Extract trait profiles from top performers through training-framed engagement sessions
-2. **Candidate Assessment**: Evaluate candidates against organization-specific or research-based rubrics using the STAR+ methodology
+Built and maintained by [Tucuxi, Inc.](https://tucuxi.ai). MIT-licensed.
 
-### Core Principles
+---
 
-- **Traceability**: Every score links to specific behavioral evidence
-- **Objectivity**: Behavioral evidence weighted over self-report
-- **Explainability**: Human-readable rationale for every scoring decision
+## Why this exists
 
-## Technology Stack
+Hiring is broken in three predictable ways:
 
-| Layer | Technology |
-|-------|------------|
-| Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic |
-| Database | PostgreSQL 15+ (JSONB for flexible schemas) |
-| Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui, Zustand |
-| LLM Integration | Multi-provider: Anthropic, OpenAI, Google AI, Groq, OpenRouter, Ollama |
-| Task Queue | Celery + Redis |
-| Email | aiosmtplib (async SMTP) |
-| Encryption | Fernet (AES-128) for sensitive data |
-| Containerization | Docker + Docker Compose |
+- **Self-report is treated as evidence.** Most interviews score what candidates say about themselves rather than what they actually did. AP API weights five distinct evidence types — observed (1.2×), behavioral (1.0×), hypothetical (0.5×), self-report (0.3×), and opinion (0.2×) — so claims without backing get the score they deserve.
+- **"Culture fit" hides bias.** AP API never asks the questions that elicit protected information; an 88-topic prohibited-topic filter blocks them at probe time, and any evidence that touches a protected class is excluded from scoring with a logged reason.
+- **Decisions can't be re-examined six months later.** Every trait score in AP API links to the specific exchanges that produced it, the patterns the engine was using, and the rubric anchor it matched against. A hiring decision is reproducible, not a vibe.
 
-## Quick Start
+If you're a small team that wants the rigor of an enterprise assessment platform without the lock-in or the price tag, this is for you. If you're a bigger team that needs an auditable, embeddable assessment engine to plug into your existing ATS, this is for you too.
+
+---
+
+## See it before you install it
+
+[**Open the architecture explorer →**](docs/playground.html)
+
+A single-page interactive map of every flow, every adjustable knob, and the live scoring math. Adjust evidence counts and watch the recommendation flip; toggle reasoning patterns and watch which probes fire. Useful before reading any code.
+
+---
+
+## Quick start
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- An AI provider API key (Anthropic, OpenAI, Google AI, Groq, or OpenRouter) **OR** use Ollama for free local inference (no API key needed)
+- One of: an Anthropic / OpenAI / Google / Groq / OpenRouter API key, **or** Ollama for free local inference (no key)
 
 ### Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/Tucuxi-Inc/AwesomePersonAPI.git
 cd AwesomePersonAPI
 
-# Copy environment configuration
+# Configure
 cp .env.example .env
+# Edit .env: at minimum set ANTHROPIC_API_KEY (or pick another provider)
 
-# Edit .env and add your AI provider API key (or use Ollama for local inference)
-# ANTHROPIC_API_KEY=sk-ant-...
-
-# Start all services
+# Run
 docker-compose up -d
-
-# Apply database migrations
 docker-compose exec backend alembic upgrade head
-
-# Seed the database with traits and rubrics
 docker-compose exec backend python -m app.db.init_db
 
-# Run tests
+# Optional: run tests (146 passing, ~49% coverage)
 docker-compose exec backend python -m pytest -v
 ```
 
-### Default Login Credentials
+### Default credentials (after `init_db`)
 
-After running `init_db`:
+| User       | Email              | Password     | Role        |
+|------------|--------------------|--------------|-------------|
+| Admin      | admin@apapi.dev    | changeme123  | ADMIN       |
+| Test User  | test@example.com   | changeme123  | INTERVIEWER |
 
-| User | Email | Password | Role |
-|------|-------|----------|------|
-| Admin | admin@apapi.dev | changeme123 | ADMIN |
-| Test User | test@example.com | changeme123 | INTERVIEWER |
+### Access points
 
-### What's Included (Seed Data)
+| Service                  | URL                          | Notes                                              |
+|--------------------------|------------------------------|----------------------------------------------------|
+| Frontend (reference UI)  | http://localhost:3003        | shadcn/ui + React 18 + Vite                        |
+| Backend API              | http://localhost:8003        |                                                    |
+| Swagger UI               | http://localhost:8003/docs   | Full OpenAPI 3 schema, ready for client codegen    |
+| ReDoc                    | http://localhost:8003/redoc  |                                                    |
+| Mailpit (captured email) | http://localhost:8025        | Every interview invitation lands here in dev       |
+| Ollama (optional)        | http://localhost:11434       | Only if you set `LLM_PROVIDER=ollama`              |
 
-The `init_db` command creates:
-- 1 Admin user + 1 Test user
-- 1 Demo Organization (pre-configured with Mailpit email)
-- 24 behavioral traits across 6 categories
-- 6 research-based scoring rubrics
-- 12+ role templates (Engineering, Sales, Leadership, etc.)
-- 5 sample jobs with descriptions
-- 6 sample candidates
+For a guided 5-minute walkthrough see [DEMO.md](DEMO.md).
 
-Email works out of the box via Mailpit -- all emails are captured at http://localhost:8025.
+### Port conflicts
 
-### Access Points
+If you already have Postgres/Redis/Ollama running on the host, edit the host-side ports in `docker-compose.yml` (e.g. `"5433:5432"`).
 
-- **Frontend**: http://localhost:3003
-- **Backend API**: http://localhost:8003
-- **API Documentation**: http://localhost:8003/docs
-- **Mailpit** (Email): http://localhost:8025 -- captures all emails sent locally
-- **Ollama API**: http://localhost:11434 (local LLM inference)
+---
 
-### Demo Walkthrough
+## How to use AP API to hire a great team
 
-New to the project? See **[DEMO.md](DEMO.md)** for a guided 5-minute walkthrough of the full product using Simple Mode. It covers creating an assessment from a job description, sending interview invitations, completing an AI-powered behavioral interview as a candidate, and viewing scored results with PDF export. All you need is a running `docker-compose` stack and an LLM provider API key.
+The platform supports two complementary workflows. You can use either or both.
 
-## Remote / Production Deployment
+### 1. Build your rubric from your own top performers
 
-When deploying to a remote server (not localhost), update these settings in `.env`:
+Most companies write job descriptions that describe a fictional ideal. AP API lets you ground them in the people who actually deliver.
 
-### Required Changes
+1. Identify 3–5 current high performers in the role you're hiring for.
+2. Run each through a **profiling session** (training-framed, ~30 minutes — see `/profiling/sessions/start`). The engine asks them to walk through their best work; trait signals are extracted from their responses.
+3. The platform synthesizes those signals into a **role-specific rubric** with behavioral anchors derived from your actual context, not generic competency dictionaries.
+4. Use that rubric — alongside the 6 built-in research-based defaults — to assess candidates.
 
-```bash
-# CORS — allow your frontend domain
-CORS_ORIGINS=https://your-frontend-domain.com
+This is the difference between "we want a 'team player'" and "for our role, collaboration looks like *X*, and here are five behaviors we've seen our best people do".
 
-# Frontend URL — used for magic links in invitation emails
-FRONTEND_BASE_URL=https://your-frontend-domain.com
+### 2. Assess candidates with full traceability
 
-# Vite API URL — tells the frontend where the backend lives
-VITE_API_URL=https://your-api-domain.com
+Two assessment paths:
 
-# Security — use a real secret key (32+ chars)
-SECRET_KEY=generate-a-real-secret-key-here
-```
+**Simple Mode** — a 7-step wizard for fast hires.
 
-### Port Conflicts
+1. Paste the job description; the LLM extracts requirements.
+2. Confirm or edit the extracted requirements.
+3. Add candidates (with optional resume upload — parsed for context-anchored probes).
+4. Pick up to 5 traits to assess.
+5. Send magic-link interview invitations (no candidate account needed).
+6. View ranked results with composite scores and trait-level evidence.
+7. Export PDF reports.
 
-If you already have PostgreSQL or Redis running on the host:
+**Full Platform** — when you need rubric customization, role profiles, configurable interview parameters, conflict probing, recursion depth, etc. See the [Configurable knobs](docs/playground.html) panel of the playground.
 
-```yaml
-# In docker-compose.yml, change the host port (left side):
-ports:
-  - "5433:5432"  # Map to 5433 instead of 5432
-```
+### 3. Defend your decisions
 
-Or use an external database by setting `DATABASE_URL` and `DATABASE_URL_SYNC` directly in `.env` and removing the `db` service from docker-compose.yml.
+Every recommendation (`STRONG_HIRE` / `HIRE` / `HOLD` / `NO_HIRE`) links back to:
 
-### Optional Services
+- The trait scores that drove it, each with its **calibrated score**, **confidence**, and **explanation**.
+- The **specific exchanges** in the interview that produced each piece of evidence.
+- The **evidence type** of each item (so you can see whether the score rests on what they did or just what they said).
+- Any **counter-indicator flags** (which automatically force HOLD even when the composite score is high).
+- A **disparate impact dashboard** so you can monitor the four-fifths rule across protected classes over time.
 
-**Ollama** and **Mailpit** are optional. To start without them:
+When a candidate or regulator asks why someone was passed over, you have something better than "we just didn't feel it".
 
-```bash
-docker-compose up -d db redis backend celery frontend
-```
+---
 
-- **Ollama**: Only needed if using local LLM inference (`LLM_PROVIDER=ollama`). Skip if using Anthropic/OpenAI/etc.
-- **Mailpit**: Only needed for local email capture. In production, configure real SMTP via Settings → Email tab or `.env`.
-
-### SMTP for Production
-
-For real email delivery (not Mailpit), update `.env`:
-
-```bash
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password   # Gmail App Password (requires 2FA)
-SMTP_FROM_EMAIL=noreply@yourdomain.com
-SMTP_FROM_NAME=Your Company Assessment
-SMTP_USE_TLS=true
-```
-
-Or configure per-organization via **Settings → Email tab** in the admin UI.
-
-## Project Structure
+## Architecture at a glance
 
 ```
-ap-api/
-├── backend/
-│   ├── alembic/versions/          # Database migrations
-│   ├── app/
-│   │   ├── api/v1/                # API route handlers
-│   │   ├── core/                  # Security, exceptions, encryption
-│   │   ├── db/                    # Database session, base models
-│   │   ├── models/                # SQLAlchemy models
-│   │   ├── schemas/               # Pydantic schemas
-│   │   ├── services/              # Business logic services
-│   │   ├── data/                  # Trait definitions, default rubrics
-│   │   ├── tasks/                 # Celery background jobs (email, etc.)
-│   │   └── templates/email/       # Jinja2 email templates
-│   └── tests/
-├── frontend/
-│   ├── src/
-│   │   ├── api/                   # API client
-│   │   ├── components/            # React components
-│   │   ├── pages/                 # Page components (incl. Settings)
-│   │   ├── hooks/                 # Custom React hooks
-│   │   ├── store/                 # Zustand stores
-│   │   └── types/                 # TypeScript types
-├── docker-compose.yml
-├── Dockerfile.backend
-├── Dockerfile.frontend
-└── docs/                          # Domain reference documents
+┌─────────────────┐    JWT auth       ┌─────────────────┐
+│ Reference React │ ───────────────►  │ FastAPI backend │
+│ frontend (3003) │ ◄───────────────  │     (8003)      │
+└─────────────────┘    OpenAPI 3      └────┬────────────┘
+        ▲                                  │
+        │ magic links (no auth)            │
+        │                                  ▼
+┌─────────────────┐                   ┌──────────────────┐
+│   Candidate     │                   │  PostgreSQL 15   │
+│   in browser    │                   │  + JSONB schemas │
+└─────────────────┘                   └──────────────────┘
+                                           │
+                       ┌───────────────────┼───────────────────┐
+                       ▼                   ▼                   ▼
+                 ┌──────────┐         ┌─────────┐        ┌───────────┐
+                 │ Celery + │         │ Multi-  │        │ Email via │
+                 │  Redis   │         │provider │        │ aiosmtplib│
+                 │ (tasks)  │         │   LLM   │        │ + Mailpit │
+                 └──────────┘         └─────────┘        └───────────┘
 ```
 
-## Key Features
+| Layer            | Technology                                                                    |
+|------------------|-------------------------------------------------------------------------------|
+| Backend          | Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic                                |
+| Database         | PostgreSQL 15+ (JSONB for flexible rubric/state schemas)                      |
+| Frontend         | React 18, TypeScript, Tailwind, shadcn/ui, Zustand                            |
+| LLM Integration  | Anthropic, OpenAI, Google AI, Groq, OpenRouter, Ollama (per-org configurable) |
+| Task Queue       | Celery + Redis (email, background extraction)                                 |
+| Email            | aiosmtplib (async SMTP), Fernet-encrypted credentials                         |
+| Encryption       | Fernet (AES-128) for SMTP and LLM API keys at rest                            |
+| Containerization | Docker + Docker Compose                                                       |
 
-### STAR+ Methodology
+---
 
-Extended behavioral interview framework:
-- **S**ituation: Context and setting
-- **T**ask: Specific responsibility
-- **A**ction: What THEY did (not the team)
-- **R**esult: Outcome and impact
-- **+Reflection**: "What would you do differently?" (reveals self-awareness)
-- **+Recursion**: "Tell me about another time..." (tests pattern consistency)
+## How the assessment engine works
 
-### 24-Trait Taxonomy
+### STAR+ methodology
 
-Organized into 6 categories:
+Extended behavioral framework. Every trait probe targets:
 
-| Category | Traits |
-|----------|--------|
-| **Cognitive** | Curiosity, Analytical Thinking, Creativity, Detail Orientation, Strategic Thinking |
-| **Interpersonal** | Collaboration, Assertiveness, Empathy, Influence, Conflict Tolerance |
-| **Execution** | Initiative, Consistency, Urgency, Perfectionism, Follow-Through |
-| **Stability** | Resilience, Stress Tolerance, Emotional Regulation, Ambiguity Tolerance |
-| **Self-Management** | Adaptability, Independence, Self-Awareness, Accountability |
-| **Orientation** | Risk Orientation, Achievement Orientation, Service Orientation, Learning Orientation |
+- **S**ituation — the context
+- **T**ask — the candidate's specific responsibility
+- **A**ction — what *they* did, not what the team did
+- **R**esult — outcome and impact
+- **+ Reflection** — "what would you do differently?" (surfaces self-awareness)
+- **+ Recursion** — "tell me about another time…" (tests pattern consistency)
+
+The engine evaluates STAR completeness after every response and routes the next probe to fill the weakest component. Reflection and recursion are configurable.
+
+### 24-trait taxonomy
+
+Six categories, four traits each:
+
+| Category          | Traits                                                                          |
+|-------------------|---------------------------------------------------------------------------------|
+| **Cognitive**       | Curiosity · Analytical Thinking · Creativity · Detail Orientation               |
+| **Interpersonal**   | Collaboration · Assertiveness · Empathy · Influence                             |
+| **Execution**       | Initiative · Consistency · Urgency · Follow-Through                             |
+| **Stability**       | Resilience · Stress Tolerance · Emotional Regulation · Ambiguity Tolerance      |
+| **Self-Management** | Adaptability · Independence · Self-Awareness · Accountability                   |
+| **Orientation**     | Risk · Achievement · Service · Learning                                         |
+
+Each trait ships with research-based behavioral anchors and counter-indicators (e.g. high Detail Orientation can be a counter-indicator for a Creative Director role).
 
 ### Universal Reasoning Patterns (URPs)
 
-Intelligent probe generation using cognitive patterns:
+Probe generation isn't pure LLM improvisation. After each response, a rule-based selector inspects context and activates the patterns whose triggers match — those rules are then injected into the next-probe prompt.
 
-| Pattern | Purpose |
-|---------|---------|
-| MC24 | Assumption Surfacing - Challenge implicit assumptions |
-| MC35 | Representation Choice - Select appropriate probe type |
-| MC38 | Abstraction Level - Calibrate response depth |
-| MC44 | Solution Space - Consider alternative interpretations |
-| IP3 | Active Listening - Identify omissions |
-| IP7 | Conflict Exploration - Probe tension and failure |
-| IP11 | Trust Calibration - Weight evidence types |
-| SP8 | Risk Identification - Probe failure modes |
-| SP12 | Scenario Projection - Project future performance |
+| Code | When it activates                                  | What it does to the next probe                         |
+|------|----------------------------------------------------|--------------------------------------------------------|
+| MC24 | First probe for a trait                            | Surfaces hidden assumptions in the rubric question     |
+| MC35 | Always (every probe)                               | Selects the best probe shape (open / scenario / counterfactual) |
+| MC38 | Last response was surface-level                    | Forces a more concrete follow-up at lower abstraction  |
+| MC44 | Confidence < 0.5                                   | Explores alternative interpretations of the response   |
+| IP3  | Omission analysis flags missing components         | Probes what was avoided                                |
+| IP7  | Response is all-smooth (no failure / tension)      | Asks for a hard moment, conflict, or failure           |
+| IP11 | Last evidence was self-report                      | Demands a behavioral example to back the claim         |
+| SP8  | Trait ∈ {Resilience, Adaptability, Initiative}     | Probes failure modes & risk-tolerance scenarios        |
 
-### Evidence-Based Scoring
+### Evidence-weighted scoring
 
-Evidence types weighted by reliability:
+| Type            | Weight | Definition                                          |
+|-----------------|--------|-----------------------------------------------------|
+| **OBSERVED**     | 1.2×   | Demonstrated during the interview itself            |
+| **BEHAVIORAL**   | 1.0×   | Specific past action with concrete details          |
+| **HYPOTHETICAL** | 0.5×   | What they would do                                  |
+| **SELF_REPORT**  | 0.3×   | Claims without backing evidence                     |
+| **OPINION**      | 0.2×   | General beliefs and values                          |
 
-| Type | Weight | Description |
-|------|--------|-------------|
-| OBSERVED | 1.2x | Demonstrated during interview |
-| BEHAVIORAL | 1.0x | Specific past action with details |
-| HYPOTHETICAL | 0.5x | What they would do |
-| SELF_REPORT | 0.3x | Claims without backing evidence |
-| OPINION | 0.2x | General beliefs and values |
+Composite score uses a confidence-weighted average of trait scores, normalized to 0–100. Recommendation thresholds:
 
-## API Reference
+- **STRONG_HIRE**: composite ≥ 75 *and* confidence ≥ 0.6
+- **HIRE**: composite ≥ 60 *and* confidence ≥ 0.5
+- **HOLD**: composite ≥ 40, *or* confidence < 0.4, *or* counter-indicator HIGH severity
+- **NO_HIRE**: composite < 40
 
-The AP API provides a comprehensive REST API for talent assessment. Below is complete documentation for all endpoints.
-
-**Base URL**: `http://localhost:8003/api/v1`
-
-**Interactive Documentation**: http://localhost:8003/docs (Swagger UI)
+A counter-indicator at HIGH severity always forces HOLD, even if the composite would otherwise produce STRONG_HIRE.
 
 ---
+
+## Use the backend with your own frontend
+
+The reference React frontend is one consumer of the API; the API is designed to be embedded into your own ATS, your own dashboard, or any custom hiring tool.
+
+### Three things to know up front
+
+1. **OpenAPI is complete and live** at `http://localhost:8003/openapi.json`. Generate a typed client with [openapi-generator](https://openapi-generator.tech/) or [openapi-typescript](https://github.com/drwpow/openapi-typescript) — every request and response body is a Pydantic schema with explicit fields.
+2. **Auth is JWT.** `POST /api/v1/auth/login` returns `access_token` (2 hours) + `refresh_token` (7 days). Send `Authorization: Bearer <access_token>` on every authenticated request. On 401, call `POST /api/v1/auth/refresh` with the refresh token to rotate.
+3. **Magic links are unauthenticated.** Any `/api/v1/public/...` endpoint takes a token in the path — these are how candidates complete interviews without an account. Token format is `secrets.token_urlsafe()`; default expiry is 7 days.
+
+### Wiring CORS for your domain
+
+Set `CORS_ORIGINS` in `.env` — a comma-separated list:
+
+```bash
+CORS_ORIGINS=http://localhost:3003,https://hire.yourdomain.com,https://admin.yourdomain.com
+```
+
+The backend honors `allow_credentials=true`, so cookie-based auth schemes work too if you add them.
+
+### Minimal third-party integration sketch (TypeScript)
+
+```ts
+// 1. Login
+const { access_token, refresh_token } = await fetch(
+  `${API_URL}/api/v1/auth/login`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  }
+).then(r => r.json());
+
+// 2. Create a Simple Mode assessment
+const assessment = await fetch(
+  `${API_URL}/api/v1/simple/assessments`,
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      job_title: 'Senior Software Engineer',
+      job_description: '…'
+    })
+  }
+).then(r => r.json());
+
+// 3. Send a candidate the magic link
+const { magic_link } = await fetch(
+  `${API_URL}/api/v1/simple/assessments/${assessment.id}/candidates/${candidateId}/send-invite`,
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({})
+  }
+).then(r => r.json());
+
+// 4. Poll results when interviews complete
+const results = await fetch(
+  `${API_URL}/api/v1/simple/assessments/${assessment.id}/results`,
+  { headers: { 'Authorization': `Bearer ${access_token}` } }
+).then(r => r.json());
+```
+
+### Endpoint surface
+
+The API is organized into 14 router groups. The full Swagger UI is at `/docs`; this is a starting map.
+
+| Group              | Mount                       | Purpose                                                            |
+|--------------------|-----------------------------|--------------------------------------------------------------------|
+| Authentication     | `/api/v1/auth`              | Register, login, refresh, get/update self                          |
+| Public / Magic-link| `/api/v1/public`            | **Unauthenticated** candidate interview endpoints                  |
+| Simple Mode        | `/api/v1/simple`            | 7-step wizard CRUD + invite + results + PDF export                 |
+| Full Platform      | `/api/v1/interviews`        | Configurable interview state machine                               |
+| Profiling          | `/api/v1/profiling`         | Top-performer sessions, rubric synthesis                           |
+| Jobs               | `/api/v1/jobs`              | Job CRUD + LLM requirement extraction + candidate screening        |
+| Candidates         | `/api/v1/candidates`        | CRUD + resume upload/parse                                         |
+| Traits             | `/api/v1/traits`            | The 24-trait taxonomy + custom traits                              |
+| Rubrics            | `/api/v1/rubrics`           | Defaults + custom + clone                                          |
+| Roles              | `/api/v1/roles`             | Role profiles & templates                                          |
+| Compliance         | `/api/v1/compliance`        | Probe validation, impact dashboard, demographics, disclosures      |
+| Organizations      | `/api/v1/organizations`     | Multi-tenant org settings (SMTP + LLM provider)                    |
+| Users              | `/api/v1/users`             | User management (admin)                                            |
+| Invitations        | `/api/v1/invitations`       | Candidate & top-performer invite lifecycle                         |
+| Dashboard          | `/api/v1/dashboard`         | Aggregate stats                                                    |
+
+### Role-based access control
+
+Roles in `User.role`: `ADMIN`, `HIRING_MANAGER`, `INTERVIEWER`. Endpoint gating is enforced via FastAPI dependencies — see `backend/app/dependencies.py`. Most write-heavy operations require ADMIN or HIRING_MANAGER; reads typically require any authenticated user.
+
+### What's *not* in the API yet
+
+These are mentioned as roadmap in `ROADMAP.md` but not yet implemented in code — don't write against them:
+
+- **Webhooks** (`interview.completed`, etc.) — no scaffolding yet.
+- **API-key auth for Simple Mode** with tiered rate limits — Simple Mode currently uses standard JWT.
+- **SCIM/SSO** — JWT only at present; bring your own identity layer.
+
+If you need any of these to ship, please open an issue or PR — they're prioritized by community demand.
+
+---
+
+## API reference (key endpoints)
+
+The complete reference is at `/docs` (Swagger). What follows is a curated tour of the endpoints most third-party integrators will hit.
 
 ### Authentication
 
-All authenticated endpoints require a JWT token in the Authorization header:
-```
-Authorization: Bearer <access_token>
-```
-
-#### Register User
 ```http
-POST /auth/register
+POST /api/v1/auth/login
 Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securepassword",
-  "full_name": "John Doe",
-  "organization_id": "uuid" // optional
-}
+{ "email": "user@example.com", "password": "..." }
 ```
 
-**Response** (201):
+Returns:
 ```json
-{
-  "id": "uuid",
-  "email": "user@example.com",
-  "full_name": "John Doe",
-  "role": "INTERVIEWER",
-  "organization_id": "uuid"
-}
+{ "access_token": "eyJ...", "refresh_token": "eyJ...", "token_type": "bearer" }
 ```
 
-#### Login
+JWT claims include `sub` (user id), `email`, `role`, `org_id`, `type` (access | refresh), `exp`.
+
+### Simple Mode (the 7-step API)
+
 ```http
-POST /auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securepassword"
-}
+POST   /api/v1/simple/assessments                                    # 1. Create
+GET    /api/v1/simple/traits                                          # available traits
+POST   /api/v1/simple/assessments/{id}/requirements/confirm           # 2. Confirm
+POST   /api/v1/simple/assessments/{id}/candidates                     # 3. Add candidate
+POST   /api/v1/simple/assessments/{id}/candidates/{cid}/resume        # upload resume
+POST   /api/v1/simple/assessments/{id}/traits                         # 4. Pick traits (≤5)
+POST   /api/v1/simple/assessments/{id}/candidates/{cid}/send-invite   # 5. Send magic link
+GET    /api/v1/simple/assessments/{id}/results                        # 6. View results
+GET    /api/v1/simple/assessments/{id}/export/pdf                     # 7. Export PDF
 ```
 
-**Response** (200):
-```json
-{
-  "access_token": "eyJ...",
-  "refresh_token": "eyJ...",
-  "token_type": "bearer"
-}
-```
+### Public candidate interview (no auth)
 
-#### Refresh Token
 ```http
-POST /auth/refresh
-Content-Type: application/json
+GET  /api/v1/public/simple/{token}              # interview info
+POST /api/v1/public/simple/{token}/start        # start
+POST /api/v1/public/simple/{token}/respond      # submit response, get next probe
+GET  /api/v1/public/simple/{token}/status       # progress
 
-{
-  "refresh_token": "eyJ..."
-}
+# Full platform variants
+GET  /api/v1/public/invite/{token}/validate
+POST /api/v1/public/invite/{token}/start
+POST /api/v1/public/invite/{token}/respond
+POST /api/v1/public/invite/{token}/end
 ```
 
-#### Get Current User
+### Full Platform interview
+
 ```http
-GET /auth/me
-Authorization: Bearer <token>
-```
-
----
-
-### Simple Mode API (Streamlined 7-Step Workflow)
-
-Simple Mode provides a streamlined workflow for API consumers and demo users. It follows a 7-step process:
-1. Create assessment with job description
-2. Confirm extracted requirements
-3. Add candidates with resumes
-4. Select traits to assess (max 5)
-5. Send interview invites (magic links)
-6. View results
-7. Export PDF report
-
-#### Create Simple Assessment
-```http
-POST /simple/assessments
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "job_title": "Senior Software Engineer",
-  "job_description": "We are looking for a senior engineer..."
-}
-```
-
-**Response** (201):
-```json
-{
-  "id": "uuid",
-  "job_title": "Senior Software Engineer",
-  "job_description": "...",
-  "status": "REQUIREMENTS_PENDING",
-  "extracted_requirements": {
-    "objective_requirements": [
-      {
-        "id": "uuid",
-        "type": "experience",
-        "requirement": "5+ years of software development",
-        "required": true
-      }
-    ],
-    "nice_to_haves": [
-      {"description": "Experience with cloud platforms"}
-    ],
-    "responsibilities": [
-      "Design and implement scalable systems"
-    ],
-    "suggested_traits": ["ANALYTICAL_THINKING", "COLLABORATION"]
-  }
-}
-```
-
-#### List Assessments
-```http
-GET /simple/assessments?status=INTERVIEWING&skip=0&limit=20
-Authorization: Bearer <token>
-```
-
-#### Get Assessment Details
-```http
-GET /simple/assessments/{assessment_id}
-Authorization: Bearer <token>
-```
-
-#### Get Available Traits
-```http
-GET /simple/traits
-Authorization: Bearer <token>
-```
-
-**Response** (200):
-```json
-{
-  "traits": [
-    {
-      "id": "uuid",
-      "name": "Analytical Thinking",
-      "category": "COGNITIVE",
-      "definition": "The ability to systematically examine information..."
-    }
-  ],
-  "max_selection": 5
-}
-```
-
-#### Confirm Requirements (Step 2)
-```http
-POST /simple/assessments/{assessment_id}/requirements/confirm
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "requirements": [
-    {
-      "id": "uuid",
-      "type": "experience",
-      "requirement": "5+ years of software development",
-      "required": true
-    }
-  ]
-}
-```
-
-#### Add Candidate (Step 3)
-```http
-POST /simple/assessments/{assessment_id}/candidates
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "email": "candidate@example.com",
-  "full_name": "Jane Smith",
-  "phone": "+1-555-123-4567"  // optional
-}
-```
-
-#### Upload Candidate Resume
-```http
-POST /simple/assessments/{assessment_id}/candidates/{candidate_id}/resume
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-
-file: <resume.pdf>
-```
-
-#### Select Traits (Step 4)
-```http
-POST /simple/assessments/{assessment_id}/traits
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "trait_ids": [
-    "trait-uuid-1",
-    "trait-uuid-2",
-    "trait-uuid-3"
-  ]
-}
-```
-*Maximum 5 traits allowed*
-
-#### Send Interview Invite (Step 5)
-```http
-POST /simple/assessments/{assessment_id}/candidates/{candidate_id}/send-invite
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "custom_message": "We're excited to learn more about you!"  // optional
-}
-```
-
-**Response** (200):
-```json
-{
-  "candidate_id": "uuid",
-  "magic_link": "http://localhost:3003/interview/abc123xyz...",
-  "expires_at": "2026-02-05T18:00:00Z",
-  "email_queued": true
-}
-```
-
-*Note: Email is sent via background task. Configure SMTP in Settings → Email or via environment variables.*
-
-#### Get Results (Step 6)
-```http
-GET /simple/assessments/{assessment_id}/results
-Authorization: Bearer <token>
-```
-
-**Response** (200):
-```json
-{
-  "assessment_id": "uuid",
-  "job_title": "Senior Software Engineer",
-  "status": "COMPLETED",
-  "total_candidates": 3,
-  "interviews_completed": 3,
-  "results": [
-    {
-      "candidate_id": "uuid",
-      "full_name": "Jane Smith",
-      "email": "jane@example.com",
-      "qualification_status": "QUALIFIED",
-      "interview_status": "COMPLETED",
-      "trait_scores": [
-        {
-          "trait_id": "uuid",
-          "trait_name": "Analytical Thinking",
-          "score": 8.5,
-          "explanation": "Demonstrated strong problem-solving..."
-        }
-      ],
-      "composite_score": 8.2,
-      "recommendation": "STRONG_HIRE",
-      "recommendation_rationale": "Excellent candidate with strong...",
-      "completed_at": "2026-01-29T15:30:00Z"
-    }
-  ]
-}
-```
-
----
-
-### Public Interview Endpoints (Magic Link Access)
-
-These endpoints allow candidates to complete interviews without authentication, using a magic link token.
-
-#### Get Interview Info
-```http
-GET /public/simple/{token}
-```
-
-**Response** (200):
-```json
-{
-  "job_title": "Senior Software Engineer",
-  "organization_name": "Acme Corp",
-  "candidate_name": "Jane Smith",
-  "estimated_duration_minutes": 30,
-  "traits_count": 3,
-  "instructions": "Welcome to your interview! ..."
-}
-```
-
-#### Start Interview
-```http
-POST /public/simple/{token}/start
-```
-
-**Response** (200):
-```json
-{
-  "session_id": "uuid",
-  "next_prompt": "Thank you for joining us today...",
-  "prompt_type": "INTRODUCTION",
-  "trait_name": null,
-  "overall_progress": 0.0
-}
-```
-
-#### Submit Response
-```http
-POST /public/simple/{token}/respond
-Content-Type: application/json
-
-{
-  "response_text": "At my previous company, we had a performance issue..."
-}
-```
-
-**Response** (200):
-```json
-{
-  "next_prompt": "Tell me about a time when you went beyond what was asked...",
-  "prompt_type": "PROBE",
-  "trait_name": "Curiosity",
-  "overall_progress": 0.0,
-  "interview_complete": false
-}
-```
-
-#### Check Interview Status
-```http
-GET /public/simple/{token}/status
-```
-
-**Response** (200):
-```json
-{
-  "status": "IN_PROGRESS",
-  "progress": 0.33,
-  "is_complete": false
-}
-```
-
----
-
-### Full Platform Interviews
-
-For the full platform with complete control over interview configuration.
-
-#### Start Interview
-```http
-POST /interviews/start
+POST /api/v1/interviews/start
 Authorization: Bearer <token>
 Content-Type: application/json
 
 {
   "candidate_id": "uuid",
-  "job_id": "uuid",  // optional - enables resume-informed probes
-  "trait_ids": ["uuid1", "uuid2"],  // traits to assess
-  "rubric_id": "uuid",  // optional - custom rubric
+  "job_id": "uuid",
+  "trait_ids": ["uuid1", "uuid2"],
+  "rubric_id": "uuid",
   "config": {
     "max_duration_minutes": 45,
     "max_follow_ups_per_trait": 3,
     "confidence_threshold_for_recursion": 0.7,
     "require_reflection": true,
     "enable_resume_customization": true,
-    "enable_conflict_probing": true
+    "enable_conflict_probing": true,
+    "minimum_behavioral_evidence": 1
   }
 }
 ```
 
-**Response** (200):
-```json
-{
-  "session_id": "uuid",
-  "next_prompt": "Hello! I'm excited to learn more about your experience...",
-  "prompt_type": "INTRODUCTION",
-  "trait_id": null,
-  "trait_name": null,
-  "overall_progress": 0,
-  "can_end_interview": false,
-  "interview_complete": false,
-  "job_title": "Senior Software Engineer",
-  "job_id": "uuid"
-}
-```
+Every config field above is optional; defaults are baked into `InterviewConfig` (see [the playground](docs/playground.html) for live defaults and descriptions).
 
-#### Submit Response
+### Profiling top performers
+
 ```http
-POST /interviews/{session_id}/respond
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "response_text": "Thank you for having me. I'm really excited about this opportunity..."
-}
+POST /api/v1/profiling/top-performers              # register a top performer
+POST /api/v1/profiling/sessions/start              # start a profiling session
+POST /api/v1/profiling/sessions/{id}/respond       # submit response
+POST /api/v1/profiling/sessions/{id}/extract       # extract trait signals
+POST /api/v1/profiling/rubrics/generate-and-save   # synthesize a custom rubric
 ```
-
-**Response** (200):
-```json
-{
-  "session_id": "uuid",
-  "next_prompt": "Tell me about a challenging project where you had to analyze complex data...",
-  "prompt_type": "PRIMARY",
-  "trait_id": "uuid",
-  "trait_name": "Analytical Thinking",
-  "trait_progress": {
-    "trait_id": "uuid",
-    "trait_name": "Analytical Thinking",
-    "phase": "PRIMARY",
-    "probes_used": 1,
-    "evidence_count": 0,
-    "behavioral_evidence_count": 0,
-    "confidence": 0,
-    "star_coverage": {"situation": false, "task": false, "action": false, "result": false},
-    "has_conflict_example": false,
-    "raw_score": null,
-    "is_complete": false
-  },
-  "overall_progress": 5,
-  "can_end_interview": false,
-  "interview_complete": false
-}
-```
-
-#### Get Session Details
-```http
-GET /interviews/{session_id}
-Authorization: Bearer <token>
-```
-
-#### End Interview Early
-```http
-POST /interviews/{session_id}/end
-Authorization: Bearer <token>
-```
-
-#### Get Assessment Results
-```http
-GET /interviews/{session_id}/result
-Authorization: Bearer <token>
-```
-
-**Response** (200):
-```json
-{
-  "session_id": "uuid",
-  "candidate_id": "uuid",
-  "recommendation": "HIRE",
-  "recommendation_rationale": "Strong candidate with demonstrated...",
-  "composite_score": 3.8,
-  "evidence_quality": "HIGH",
-  "confidence": 0.85,
-  "trait_scores": [
-    {
-      "trait_id": "uuid",
-      "trait_name": "Analytical Thinking",
-      "raw_score": 4.2,
-      "calibrated_score": 4.0,
-      "confidence": 0.9,
-      "explanation": "Demonstrated systematic problem-solving...",
-      "evidence_summary": "Provided detailed STAR examples...",
-      "signal_gaps": []
-    }
-  ],
-  "key_strengths": [
-    {
-      "trait_name": "Analytical Thinking",
-      "score": 4.0,
-      "evidence": "Systematically diagnosed production issue..."
-    }
-  ],
-  "development_areas": [
-    {
-      "trait_name": "Collaboration",
-      "score": 3.0,
-      "recommendation": "Could benefit from more cross-team exposure"
-    }
-  ],
-  "counter_indicator_flags": [],
-  "assessment_summary": "Overall strong candidate recommended for hire..."
-}
-```
-
----
-
-### Jobs
-
-#### Create Job
-```http
-POST /jobs
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "title": "Senior Software Engineer",
-  "description": "Full job description text...",
-  "department": "Engineering",
-  "location": "Remote",
-  "employment_type": "Full-time",
-  "role_profile_id": "uuid"  // optional
-}
-```
-
-#### Extract Requirements (LLM-powered)
-```http
-POST /jobs/{job_id}/extract-requirements
-Authorization: Bearer <token>
-```
-
-#### Save Requirements
-```http
-POST /jobs/{job_id}/save-requirements
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "objective_requirements": [...],
-  "nice_to_haves": [...],
-  "responsibilities": [...],
-  "suggested_traits": [...]
-}
-```
-
-#### Screen Candidate Against Job
-```http
-POST /jobs/{job_id}/screen-candidate/{candidate_id}
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "resume_id": "uuid"  // optional
-}
-```
-
-**Response** (200):
-```json
-{
-  "id": "uuid",
-  "qualification_status": "QUALIFIED",
-  "requirement_results": [
-    {
-      "requirement_id": "uuid",
-      "requirement_text": "5+ years experience",
-      "status": "MET",
-      "evidence": "Resume shows 7 years at Tech Corp",
-      "explanation": "Exceeds minimum requirement"
-    }
-  ],
-  "gaps": [],
-  "gap_count": 0
-}
-```
-
----
-
-### Candidates
-
-#### Create Candidate
-```http
-POST /candidates
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "email": "candidate@example.com",
-  "full_name": "Jane Smith",
-  "phone": "+1-555-123-4567",
-  "current_title": "Software Engineer",
-  "current_company": "Tech Corp",
-  "years_experience": 5,
-  "source": "LinkedIn",
-  "role_profile_id": "uuid",
-  "tags": ["senior", "backend"]
-}
-```
-
-#### Upload Resume
-```http
-POST /candidates/{candidate_id}/resume
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-
-file: <resume.pdf>
-```
-
-**Response** (200):
-```json
-{
-  "id": "uuid",
-  "filename": "jane_smith_resume.pdf",
-  "parse_status": "PARSED",
-  "parsed_data": {
-    "contact": {"email": "jane@example.com", "phone": "..."},
-    "summary": "Experienced software engineer...",
-    "experience": [
-      {
-        "company": "Tech Corp",
-        "title": "Senior Engineer",
-        "start_date": "2019-01",
-        "end_date": null,
-        "duration_months": 60,
-        "achievements": ["Led migration to microservices..."]
-      }
-    ],
-    "education": [...],
-    "skills": ["Python", "React", "AWS"],
-    "certifications": [...],
-    "total_years_experience": 7
-  }
-}
-```
-
----
-
-### Traits
-
-#### List All Traits
-```http
-GET /traits?category=COGNITIVE&skip=0&limit=50
-Authorization: Bearer <token>
-```
-
-**Response** (200):
-```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "name": "ANALYTICAL_THINKING",
-      "category": "COGNITIVE",
-      "definition": "The ability to systematically examine information...",
-      "spectrum_low_label": "Intuitive",
-      "spectrum_high_label": "Analytical",
-      "behavioral_markers_low": ["Makes decisions based on gut feeling"],
-      "behavioral_markers_high": ["Breaks down complex problems systematically"],
-      "counter_indicator_for": ["CREATIVE_DIRECTOR"]
-    }
-  ],
-  "total": 24
-}
-```
-
-#### Get Trait by Name
-```http
-GET /traits/name/ANALYTICAL_THINKING
-Authorization: Bearer <token>
-```
-
----
-
-### Scoring Rubrics
-
-#### List Rubrics
-```http
-GET /rubrics?trait_id=uuid&defaults_only=true
-Authorization: Bearer <token>
-```
-
-#### Get Default Research-Based Rubrics
-```http
-GET /rubrics/defaults
-Authorization: Bearer <token>
-```
-
-**Response** (200):
-```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "name": "Analytical Thinking - Research Default",
-      "trait_id": "uuid",
-      "is_default": true,
-      "behavioral_anchors": {
-        "1": {
-          "label": "Developing",
-          "description": "Struggles with systematic analysis",
-          "indicators": ["Makes decisions without examining data"]
-        },
-        "3": {
-          "label": "Proficient",
-          "description": "Applies structured thinking consistently",
-          "indicators": ["Breaks problems into components"]
-        },
-        "5": {
-          "label": "Exceptional",
-          "description": "Demonstrates sophisticated analytical frameworks",
-          "indicators": ["Identifies non-obvious patterns"]
-        }
-      },
-      "primary_probes": [
-        {
-          "question": "Tell me about a complex problem you analyzed...",
-          "purpose": "Assess systematic thinking approach",
-          "star_focus": "action"
-        }
-      ]
-    }
-  ]
-}
-```
-
----
-
-### Profile Development (Top Performers)
-
-#### Create Top Performer
-```http
-POST /profiling/top-performers
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "Alex Johnson",
-  "email": "alex@company.com",
-  "job_title": "Senior Engineer",
-  "role_category": "ENGINEERING",
-  "department": "Platform",
-  "tenure_months": 36,
-  "is_anonymized": false
-}
-```
-
-#### Start Profiling Session
-```http
-POST /profiling/sessions/start
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "top_performer_id": "uuid",
-  "target_traits": ["ANALYTICAL_THINKING", "COLLABORATION"]
-}
-```
-
-#### Extract Traits from Session
-```http
-POST /profiling/sessions/{session_id}/extract
-Authorization: Bearer <token>
-```
-
----
 
 ### Compliance
 
-#### Get Impact Dashboard
 ```http
-GET /compliance/impact-dashboard
-Authorization: Bearer <token>
+POST /api/v1/compliance/validate-probe             # pre-flight a custom probe
+GET  /api/v1/compliance/impact-dashboard           # 4/5ths rule monitoring
+POST /api/v1/compliance/impact-reports             # generate annual report
+POST /api/v1/compliance/demographics               # opt-in candidate demographics
+POST /api/v1/compliance/disclosures/generate       # NYC, IL, etc. disclosure templates
+GET  /api/v1/compliance/audit/assessment/{id}      # full audit trail
 ```
 
-**Response** (200):
-```json
-{
-  "current_ratios": [
-    {
-      "protected_class": "gender",
-      "group_a": "Male",
-      "group_b": "Female",
-      "impact_ratio": 0.92,
-      "passes_four_fifths": true,
-      "sample_size_adequate": true
-    }
-  ],
-  "alerts": [],
-  "last_full_audit": "2026-01-15T00:00:00Z"
-}
-```
-
-#### Generate Disclosure
-```http
-POST /compliance/disclosures/generate?jurisdiction=NYC
-Authorization: Bearer <token>
-```
-
----
-
-### Error Responses
-
-All endpoints return consistent error responses:
+### Error format
 
 ```json
-{
-  "detail": "Error message describing what went wrong"
-}
+{ "detail": "Human-readable error message" }
 ```
 
-Common HTTP status codes:
-- `400` - Bad Request (validation error)
-- `401` - Unauthorized (missing or invalid token)
-- `403` - Forbidden (insufficient permissions)
-- `404` - Not Found
-- `422` - Unprocessable Entity (validation failed)
-- `500` - Internal Server Error
+Standard FastAPI status codes: 400 (validation), 401 (auth), 403 (permissions), 404, 422 (Pydantic), 500.
 
 ---
 
-### Rate Limiting (Simple Mode API Keys)
+## Configuration
 
-| Tier | Assessments/month | Candidates/assessment | API calls/minute |
-|------|-------------------|----------------------|------------------|
-| FREE | 5 | 10 | 10 |
-| BASIC | 50 | 50 | 60 |
-| PRO | 500 | 200 | 300 |
-| ENTERPRISE | Unlimited | Unlimited | 1000 |
-
----
-
-### Webhooks (Coming Soon)
-
-Future webhook events:
-- `interview.started`
-- `interview.completed`
-- `assessment.generated`
-- `candidate.screened`
-
----
-
-### Email Settings (Admin)
-
-Configure SMTP settings per-organization for sending interview invitations. SMTP passwords are encrypted at rest.
-
-#### Get Email Settings
-```http
-GET /organizations/{org_id}/email-settings
-Authorization: Bearer <token>
-```
-
-**Response** (200):
-```json
-{
-  "smtp_host": "smtp.gmail.com",
-  "smtp_port": 587,
-  "smtp_user": "user@example.com",
-  "smtp_password_set": true,
-  "smtp_from_email": "noreply@example.com",
-  "smtp_from_name": "Company Name",
-  "smtp_use_tls": true,
-  "configured_at": "2026-01-31T12:00:00Z",
-  "configured_by": "user-uuid"
-}
-```
-
-#### Update Email Settings
-```http
-PUT /organizations/{org_id}/email-settings
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "smtp_host": "smtp.gmail.com",
-  "smtp_port": 587,
-  "smtp_user": "user@example.com",
-  "smtp_password": "app-password-here",
-  "smtp_from_email": "noreply@example.com",
-  "smtp_from_name": "Company Name",
-  "smtp_use_tls": true
-}
-```
-
-*Note: `smtp_password` is encrypted with Fernet before storage and never returned in responses.*
-
-#### Send Test Email
-```http
-POST /organizations/{org_id}/email-settings/test
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "recipient_email": "test@example.com"
-}
-```
-
-**Response** (200):
-```json
-{
-  "success": true,
-  "message": "Test email sent successfully"
-}
-```
-
----
-
-## Core Services
-
-### Interview Engine (`app/services/interview_engine.py`)
-Main orchestrator implementing STAR+ methodology:
-- Manages interview session lifecycle
-- Coordinates probe generation and response analysis
-- Tracks STAR+ completeness and evidence collection
-- Determines when to follow-up, reflect, or request recursion
-
-### Pattern-Aware Probe Generator (`app/services/probe_generator.py`)
-Generates contextually intelligent probes:
-- Applies URPs based on conversation context
-- Customizes probes with resume details
-- Targets specific STAR components when needed
-
-### Response Analyzer (`app/services/response_analyzer.py`)
-Analyzes candidate responses:
-- Extracts and classifies evidence
-- Assesses STAR completeness
-- Detects omissions and gaps
-- Recommends follow-up strategies
-
-### Score Calibrator (`app/services/score_calibrator.py`)
-Generates final assessments:
-- Weights evidence by type
-- Matches to behavioral anchors
-- Identifies counter-indicators
-- Generates human-readable explanations
-
-### Email Service (`app/services/email_service.py`)
-Handles interview invitation emails:
-- Async SMTP sending via aiosmtplib
-- Jinja2 template rendering
-- Supports per-organization SMTP settings
-- Falls back to environment variables if org settings not configured
-- Background execution via Celery tasks
-
-## Development
-
-### Running Tests
-
-```bash
-# Run all tests
-docker-compose exec backend python -m pytest -v
-
-# Run with coverage
-docker-compose exec backend python -m pytest --cov=app --cov-report=html
-
-# Run specific test file
-docker-compose exec backend python -m pytest tests/test_interview_engine.py -v
-```
-
-### Database Migrations
-
-```bash
-# Create new migration
-docker-compose exec backend alembic revision --autogenerate -m "description"
-
-# Apply migrations
-docker-compose exec backend alembic upgrade head
-
-# Rollback one migration
-docker-compose exec backend alembic downgrade -1
-```
-
-### Viewing Logs
-
-```bash
-# All services
-docker-compose logs -f
-
-# Backend only
-docker-compose logs -f backend
-```
-
-## Environment Variables
+### Environment variables
 
 Required in `.env`:
 
@@ -1217,115 +455,172 @@ DB_USER=apapi
 DB_PASSWORD=apapi_secret
 DB_NAME=apapi
 
-# Security
-SECRET_KEY=your-secret-key-change-in-production-minimum-32-characters
+# Security — must be 32+ chars in production
+SECRET_KEY=$(openssl rand -hex 32)
 
-# Anthropic API
-ANTHROPIC_API_KEY=sk-ant-...
-
-# CORS
+# CORS — comma-separated for multiple origins
 CORS_ORIGINS=http://localhost:3003
 
 # Environment
 ENVIRONMENT=development
 
-# Frontend URL (for magic links in emails)
+# Frontend base URL (used in magic-link emails)
 FRONTEND_BASE_URL=http://localhost:3003
 ```
 
-### Email Configuration
+### LLM provider
 
-Email works out of the box using Mailpit (local email capture). All sent emails are viewable at http://localhost:8025.
-
-For production use, configure real SMTP via the **Admin UI** (Settings → Email tab) or environment variables:
+Set the provider and the matching API key. The system resolves config in this order: per-org DB settings (admin UI) → environment variables → Anthropic default.
 
 ```bash
-# SMTP Settings (default: Mailpit for local dev)
-SMTP_HOST=mailpit
-SMTP_PORT=1025
-SMTP_USER=
-SMTP_PASSWORD=
-SMTP_FROM_EMAIL=noreply@apapp.dev
-SMTP_FROM_NAME=AP APP Assessment
-SMTP_USE_TLS=false
-```
+LLM_PROVIDER=anthropic   # anthropic | openai | google | groq | openrouter | ollama
+LLM_MODEL=               # blank = provider default
 
-**Gmail Setup** (for production): Use an [App Password](https://support.google.com/accounts/answer/185833) (requires 2FA enabled) instead of your regular password.
-
-### AI Provider Configuration
-
-The platform supports multiple LLM providers. You can configure the provider via the **Admin UI** or **environment variables**.
-
-**Method 1: Admin UI** (recommended, per-organization)
-
-1. Login as admin (`admin@apapi.dev` / `changeme123`)
-2. Go to **Settings → AI** tab
-3. Select a provider from the dropdown
-4. Enter your API key (encrypted at rest with Fernet)
-5. Select a model (fetched dynamically from the provider's API)
-6. Click "Test Connection" to verify, then "Save Settings"
-
-Admin UI settings are stored per-organization and take precedence over environment variables.
-
-**Method 2: Environment Variables** (global fallback)
-
-Set the provider and its API key in `.env`:
-
-```bash
-# Provider selection
-LLM_PROVIDER=anthropic          # anthropic, openai, google, groq, openrouter, ollama
-LLM_MODEL=                      # Empty = use provider default
-```
-
-Provider-specific API keys (only the key for your chosen provider is required):
-
-```bash
-# Anthropic (default)
+# Set whichever one(s) match your provider:
 ANTHROPIC_API_KEY=sk-ant-...
-
-# OpenAI
 OPENAI_API_KEY=sk-...
-
-# Google AI (Gemini)
 GOOGLE_API_KEY=AIza...
-
-# Groq
 GROQ_API_KEY=gsk_...
-
-# OpenRouter
 OPENROUTER_API_KEY=sk-or-...
-
-# Ollama (local, no API key needed)
-OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_BASE_URL=http://ollama:11434   # no key needed for Ollama
 ```
 
-**Ollama (Local LLM)**: Ollama runs as a Docker service automatically. Pull models before use:
+For local LLM inference, pull a model after `docker-compose up`:
 
 ```bash
 docker-compose exec ollama ollama pull llama3.2
-docker-compose exec ollama ollama pull mistral
 ```
 
-**Configuration Resolution Order**: Per-organization DB settings (admin UI) → Environment variables → Anthropic default.
+You can also configure the provider per-organization via **Settings → AI tab** in the admin UI; API keys are Fernet-encrypted at rest.
 
-## Contributing
+### Email
 
-1. Create a feature branch from `main`
-2. Make your changes with tests
-3. Ensure all tests pass
-4. Submit a pull request
+Mailpit is pre-configured for local dev — every invitation lands at http://localhost:8025. For production, configure SMTP via the admin UI (**Settings → Email tab**, encrypted per-org) or environment variables:
 
-## License
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password   # Gmail app password, requires 2FA
+SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_FROM_NAME=Your Company Hiring
+SMTP_USE_TLS=true
+```
 
-Proprietary - Tucuxi Inc.
+---
+
+## Operations
+
+### Running tests
+
+```bash
+docker-compose exec backend python -m pytest -v
+docker-compose exec backend python -m pytest --cov=app --cov-report=term-missing
+docker-compose exec backend python -m pytest tests/test_score_calibrator.py -v
+```
+
+The suite covers password hashing & JWTs, probe generation patterns, interview state, evidence weighting, score calibration, email encryption, reflection-loop fix, and SMTP edge cases.
+
+### Database migrations
+
+```bash
+docker-compose exec backend alembic upgrade head
+docker-compose exec backend alembic revision --autogenerate -m "description"
+docker-compose exec backend alembic downgrade -1
+```
+
+### Logs
+
+```bash
+docker-compose logs -f backend
+docker-compose logs -f celery       # email + background tasks
+```
+
+### Production deployment notes
+
+In `.env` for a non-localhost deployment:
+
+```bash
+SECRET_KEY=$(openssl rand -hex 32)              # absolutely don't reuse the default
+CORS_ORIGINS=https://hire.yourdomain.com
+FRONTEND_BASE_URL=https://hire.yourdomain.com   # so magic links use https
+VITE_API_URL=https://api.yourdomain.com         # so the bundled frontend hits the right host
+```
+
+Ollama and Mailpit are optional. To start without them:
+
+```bash
+docker-compose up -d db redis backend celery frontend
+```
+
+---
+
+## Project structure
+
+```
+.
+├── backend/
+│   ├── alembic/versions/             # database migrations
+│   ├── app/
+│   │   ├── api/v1/                   # 14 routers, ~113 endpoints
+│   │   ├── core/                     # security, encryption, llm_context
+│   │   ├── db/                       # session, base models, init_db
+│   │   ├── models/                   # SQLAlchemy models
+│   │   ├── schemas/                  # Pydantic schemas
+│   │   ├── services/                 # interview engine, probe generator,
+│   │   │                             # response analyzer, score calibrator,
+│   │   │                             # llm providers, email, pdf, compliance
+│   │   ├── data/                     # 24-trait definitions, default rubrics
+│   │   ├── tasks/                    # Celery jobs (email)
+│   │   └── templates/email/          # Jinja2 email templates
+│   └── tests/
+├── frontend/
+│   └── src/                          # React 18 + TypeScript + Tailwind
+├── docs/
+│   ├── playground.html               # ← interactive architecture explorer
+│   └── ap_api_*.md                   # domain reference docs
+├── docker-compose.yml
+├── Dockerfile.backend
+├── Dockerfile.frontend
+├── DEMO.md                           # 5-minute guided walkthrough
+├── ROADMAP.md
+└── LICENSE                           # MIT
+```
+
+---
 
 ## Documentation
 
-Additional documentation in the repository root:
-- `CLAUDE.md` - AI assistant instructions and project context
-- `HANDOFF.md` - Project handoff document with current state and testing checklist
-- `ap_api_interview_protocol.md` - STAR+ methodology details
-- `ap_api_trait_taxonomy.md` - 24 trait definitions
-- `ap_api_reasoning_pattern_integration.md` - URP integration guide
-- `ap_api_system_architecture.md` - Technical architecture
-- `ap_api_quick_reference.md` - Interviewer field guide
+- [`docs/playground.html`](docs/playground.html) — interactive architecture explorer (recommended starting point)
+- [`DEMO.md`](DEMO.md) — guided 5-minute product walkthrough
+- [`docs/ap_api_interview_protocol.md`](docs/ap_api_interview_protocol.md) — STAR+ methodology in depth
+- [`docs/ap_api_trait_taxonomy.md`](docs/ap_api_trait_taxonomy.md) — 24 trait definitions with valences
+- [`docs/ap_api_reasoning_pattern_integration.md`](docs/ap_api_reasoning_pattern_integration.md) — URP integration
+- [`docs/ap_api_system_architecture.md`](docs/ap_api_system_architecture.md) — technical architecture
+- [`docs/ap_api_compliance_framework.md`](docs/ap_api_compliance_framework.md) — fairness guardrails
+- [`docs/ap_api_training_based_profiling.md`](docs/ap_api_training_based_profiling.md) — top-performer profiling
+- [`docs/ap_api_quick_reference.md`](docs/ap_api_quick_reference.md) — interviewer field guide
+- [`CLAUDE.md`](CLAUDE.md) — assistant context (build commands, current state)
+
+---
+
+## Contributing
+
+1. Fork and create a feature branch from `main`.
+2. Make your changes, add tests, ensure `pytest` is green.
+3. Open a pull request with a clear description of what changed and why.
+
+We especially welcome PRs that:
+
+- Add language SDKs (TypeScript, Go, Python) generated from the OpenAPI schema
+- Implement the webhook system or SCIM/SSO
+- Add new role profile templates
+- Extend the trait taxonomy with research-backed additions
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Copyright (c) 2026 Tucuxi, Inc.
